@@ -42,8 +42,14 @@ export default function Dashboard() {
       .gte('date', start)
       .lte('date', end);
 
-    const spent = transactions?.reduce((sum, t) => 
-      t.type !== 'goal_contribution' ? sum + parseFloat(t.amount as string) : sum, 0) || 0;
+    const spent = transactions?.reduce((sum, t) => {
+      if (t.type !== 'goal_contribution') {
+        // Handle amount as it comes from the database (already a string in Supabase NUMERIC fields)
+        const amount = typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount;
+        return sum + amount;
+      }
+      return sum;
+    }, 0) || 0;
     
     setTotalSpent(spent);
     setAvailableFunds(monthlyIncome - spent);
