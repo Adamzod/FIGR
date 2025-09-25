@@ -1,20 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { MobileLayout } from '@/components/layout/MobileLayout';
 import { FAB } from '@/components/layout/FAB';
-import { BudgetCard } from '@/components/dashboard/BudgetCard';
-import { CategoryList } from '@/components/dashboard/CategoryList';
-import { SubscriptionsList } from '@/components/dashboard/SubscriptionsList';
+import { EnhancedDashboard } from '@/components/dashboard/EnhancedDashboard';
+import { useAuth } from '@/hooks/useAuth';
 import ReconciliationModal from '@/components/ReconciliationModal';
 import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
-import { getMonthDateRange, normalizeToMonthly } from '@/lib/finance-utils';
-import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { normalizeToMonthly, getMonthDateRange } from '@/lib/finance-utils';
+import { Plus, Loader2 } from 'lucide-react';
 
 interface Category {
   id: string;
@@ -22,6 +21,7 @@ interface Category {
   allocated_percentage: number;
   spent: number;
   budget: number;
+  is_system?: boolean;
 }
 
 interface Subscription {
@@ -35,12 +35,14 @@ interface Subscription {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [availableFunds, setAvailableFunds] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [currentMonthRollover, setCurrentMonthRollover] = useState(0);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
     name: '',
@@ -51,15 +53,53 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      loadDashboardData();
       checkUserIncomes();
+      loadDashboardData();
+      checkForRollover();
     }
   }, [user]);
+
+  const checkUserIncomes = async () => {
+    if (!user) return;
+    
+    const { data: incomes } = await supabase
+      .from('incomes')
+      .select('id')
+      .eq('user_id', user.id)
+      .limit(1);
+    
+    if (!incomes || incomes.length === 0) {
+      navigate('/onboarding');
+    }
+  };
+
+  const checkForRollover = async () => {
+    if (!user) return;
+    
+    try {
+      const currentMonth = new Date();
+      const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
+      
+      const { data: rollover } = await supabase
+        .from('rollovers')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('month_start', monthStart)
+        .maybeSingle();
+      
+      if (rollover) {
+        setCurrentMonthRollover(Number(rollover.amount));
+      }
+    } catch (error) {
+      console.error('Error checking rollover:', error);
+    }
+  };
 
   const loadDashboardData = async () => {
     if (!user) return;
     
     try {
+      setLoading(true);
       const { start, end } = getMonthDateRange();
       
       // Load income data
@@ -76,7 +116,8 @@ export default function Dashboard() {
       const { data: categoriesData } = await supabase
         .from('categories')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .order('name');
       
       // Load transactions for the current month
       const { data: transactions } = await supabase
@@ -84,13 +125,14 @@ export default function Dashboard() {
         .select('*')
         .eq('user_id', user.id)
         .gte('date', start)
-        .lte('date', end);
+        .lte('date', end)
+        .lte('date', new Date().toISOString().split('T')[0]); // Exclude future-dated transactions
       
       // Calculate spent amount per category
       const categoriesWithSpending = categoriesData?.map(cat => {
         const categoryTransactions = transactions?.filter(t => t.category_id === cat.id) || [];
         const spent = categoryTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
-        const budget = (cat.allocated_percentage / 100) * monthlyIncome;
+        const budget = (cat.allocated_percentage) * monthlyIncome;
         
         return {
           ...cat,
@@ -103,9 +145,14 @@ export default function Dashboard() {
       const { data: subscriptionsData } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .order('next_due_date');
       
-      const totalSpentAmount = transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+      // Calculate total spent (excluding future transactions and goal contributions)
+      const totalSpentAmount = transactions
+        ?.filter(t => t.type !== 'goal_contribution')
+        ?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+      
       const available = monthlyIncome - totalSpentAmount;
       
       setTotalIncome(monthlyIncome);
@@ -115,29 +162,14 @@ export default function Dashboard() {
       setSubscriptions(subscriptionsData || []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      toast.error('Failed to load dashboard data');
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
-  };
-
-  const checkUserIncomes = async () => {
-    if (!user) return;
-    
-    const { data: incomes } = await supabase
-      .from('incomes')
-      .select('id')
-      .eq('user_id', user.id)
-      .limit(1);
-    
-    if (!incomes || incomes.length === 0) {
-      navigate('/onboarding');
-    }
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate('/auth');
   };
 
   const handleAddTransaction = async () => {
@@ -156,7 +188,11 @@ export default function Dashboard() {
       
       if (error) throw error;
       
-      toast.success('Transaction added successfully');
+      toast({
+        title: "Success",
+        description: "Transaction added successfully",
+      });
+      
       setIsTransactionModalOpen(false);
       setNewTransaction({
         name: '',
@@ -166,144 +202,136 @@ export default function Dashboard() {
       });
       loadDashboardData();
     } catch (error) {
-      console.error('Error adding transaction:', error);
-      toast.error('Failed to add transaction');
+      toast({
+        title: "Error",
+        description: "Failed to add transaction",
+        variant: "destructive",
+      });
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      <MobileLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MobileLayout>
     );
   }
 
   return (
-    <>
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-background border-b border-border">
-        <div className="flex items-center justify-between p-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Welcome back,</p>
-            <h1 className="text-xl font-semibold">{user?.email?.split('@')[0]}</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/onboarding')}
-            >
-              <User className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSignOut}
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+    <MobileLayout>
+      <div className="flex flex-col min-h-screen bg-background">
+        {/* Header */}
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+          <div className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Welcome back</p>
+                <h1 className="text-2xl font-bold">Dashboard</h1>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/transactions')}
+              >
+                View All
+              </Button>
+            </div>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <div className="p-4 space-y-4 pb-20">
-        {/* Budget Overview Card */}
-        <BudgetCard
-          availableFunds={availableFunds}
-          totalIncome={totalIncome}
-          totalSpent={totalSpent}
-        />
-        
-        {/* Categories List */}
-        <CategoryList
-          categories={categories}
-          totalIncome={totalIncome}
-        />
-        
-        {/* Subscriptions */}
-        <SubscriptionsList subscriptions={subscriptions} />
-      </div>
+        {/* Main Content */}
+        <div className="flex-1 p-4">
+          <EnhancedDashboard
+            user={user}
+            availableFunds={availableFunds}
+            totalIncome={totalIncome}
+            totalSpent={totalSpent}
+            categories={categories}
+            currentMonthRollover={currentMonthRollover}
+          />
+        </div>
 
-      {/* Floating Action Button */}
-      <FAB onClick={() => setIsTransactionModalOpen(true)} />
+        {/* Reconciliation Modal */}
+        <ReconciliationModal />
 
-      {/* Add Transaction Modal */}
-      <Dialog open={isTransactionModalOpen} onOpenChange={setIsTransactionModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Add Transaction</DialogTitle>
-            <DialogDescription>
-              Record a new expense or income transaction.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Transaction Name</Label>
-              <Input
-                id="name"
-                placeholder="e.g., Grocery shopping"
-                value={newTransaction.name}
-                onChange={(e) => setNewTransaction({ ...newTransaction, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={newTransaction.amount}
-                onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select
-                value={newTransaction.category_id}
-                onValueChange={(value) => setNewTransaction({ ...newTransaction, category_id: value })}
+        {/* FAB */}
+        <FAB onClick={() => setIsTransactionModalOpen(true)} />
+
+        {/* Add Transaction Modal */}
+        <Dialog open={isTransactionModalOpen} onOpenChange={setIsTransactionModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Transaction</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={newTransaction.name}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, name: e.target.value })}
+                  placeholder="e.g., Coffee"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="amount">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  value={newTransaction.amount}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Select 
+                  value={newTransaction.category_id} 
+                  onValueChange={(value) => setNewTransaction({ ...newTransaction, category_id: value })}
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No category</SelectItem>
+                    {categories.filter(cat => !cat.is_system).map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={newTransaction.date}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
+                />
+              </div>
+              
+              <Button 
+                onClick={handleAddTransaction} 
+                className="w-full"
+                disabled={!newTransaction.name || !newTransaction.amount}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No category</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Transaction
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={newTransaction.date}
-                onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsTransactionModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAddTransaction}
-              disabled={!newTransaction.name || !newTransaction.amount}
-            >
-              Add Transaction
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reconciliation Modal */}
-      <ReconciliationModal />
-    </>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </MobileLayout>
   );
 }
