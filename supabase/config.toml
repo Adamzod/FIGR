@@ -1,1 +1,12 @@
 project_id = "vfzjrmypwqqgncqkytds"
+
+[functions.monthly-reconcile]
+schedule = "0 0 1 * *"
+
+[functions.apply-scheduled-contributions]
+schedule = "0 1 * * *"
+
+[functions.apply-due-subscriptions]
+schedule = "0 2 * * *"
+
+[functions.apply-reconciliation-decision]
