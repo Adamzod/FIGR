@@ -45,7 +45,7 @@ export default function Dashboard() {
   const [newTransaction, setNewTransaction] = useState({
     name: '',
     amount: '',
-    category_id: '',
+    category_id: 'none',
     date: new Date().toISOString().split('T')[0],
   });
 
@@ -150,7 +150,7 @@ export default function Dashboard() {
           user_id: user.id,
           name: newTransaction.name,
           amount: parseFloat(newTransaction.amount),
-          category_id: newTransaction.category_id || null,
+          category_id: newTransaction.category_id === 'none' ? null : newTransaction.category_id,
           date: newTransaction.date,
         });
       
@@ -161,7 +161,7 @@ export default function Dashboard() {
       setNewTransaction({
         name: '',
         amount: '',
-        category_id: '',
+        category_id: 'none',
         date: new Date().toISOString().split('T')[0],
       });
       loadDashboardData();
@@ -269,7 +269,7 @@ export default function Dashboard() {
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No category</SelectItem>
+                  <SelectItem value="none">No category</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
