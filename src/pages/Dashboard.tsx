@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, getMonthDateRange, normalizeToMonthly } from '@/lib/finance-utils';
-import { DollarSign, TrendingUp, PieChart, Plus, LogOut, Receipt, Target, CreditCard, DollarSign as Income } from 'lucide-react';
+import { DollarSign, TrendingUp, PieChart, Plus, LogOut, Receipt, Target, CreditCard, DollarSign as Income, AlertCircle } from 'lucide-react';
 import ReconciliationModal from '@/components/ReconciliationModal';
 
 export default function Dashboard() {
@@ -159,6 +159,42 @@ export default function Dashboard() {
               <CardContent>
                 <Target className="h-8 w-8 text-primary" />
                 <p className="text-sm text-muted-foreground mt-2">Track savings goals</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to="/subscriptions">
+            <Card className="card-hover cursor-pointer">
+              <CardHeader>
+                <CardTitle>Subscriptions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CreditCard className="h-8 w-8 text-primary" />
+                <p className="text-sm text-muted-foreground mt-2">Manage recurring payments</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to="/incomes">
+            <Card className="card-hover cursor-pointer">
+              <CardHeader>
+                <CardTitle>Income Sources</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Income className="h-8 w-8 text-primary" />
+                <p className="text-sm text-muted-foreground mt-2">Manage income streams</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to="/pending">
+            <Card className="card-hover cursor-pointer">
+              <CardHeader>
+                <CardTitle>Pending Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AlertCircle className="h-8 w-8 text-primary" />
+                <p className="text-sm text-muted-foreground mt-2">Complete variable bills</p>
               </CardContent>
             </Card>
           </Link>

@@ -11,6 +11,9 @@ import Onboarding from "./pages/Onboarding";
 import Transactions from "./pages/Transactions";
 import Categories from "./pages/Categories";
 import Goals from "./pages/Goals";
+import Subscriptions from "./pages/Subscriptions";
+import Incomes from "./pages/Incomes";
+import PendingActions from "./pages/PendingActions";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -53,26 +56,34 @@ const App = () => {
                 <Dashboard />
               </ProtectedRoute>
             } />
-            {/* Placeholder routes for future pages */}
             <Route path="/transactions" element={
               <ProtectedRoute>
-                <div className="min-h-screen p-8 text-center">
-                  <h1 className="text-2xl font-bold">Transactions Page (Coming Soon)</h1>
-                </div>
+                <Transactions />
               </ProtectedRoute>
             } />
             <Route path="/categories" element={
               <ProtectedRoute>
-                <div className="min-h-screen p-8 text-center">
-                  <h1 className="text-2xl font-bold">Categories Page (Coming Soon)</h1>
-                </div>
+                <Categories />
               </ProtectedRoute>
             } />
             <Route path="/goals" element={
               <ProtectedRoute>
-                <div className="min-h-screen p-8 text-center">
-                  <h1 className="text-2xl font-bold">Goals Page (Coming Soon)</h1>
-                </div>
+                <Goals />
+              </ProtectedRoute>
+            } />
+            <Route path="/subscriptions" element={
+              <ProtectedRoute>
+                <Subscriptions />
+              </ProtectedRoute>
+            } />
+            <Route path="/incomes" element={
+              <ProtectedRoute>
+                <Incomes />
+              </ProtectedRoute>
+            } />
+            <Route path="/pending" element={
+              <ProtectedRoute>
+                <PendingActions />
               </ProtectedRoute>
             } />
             <Route path="*" element={
