@@ -27,8 +27,8 @@ const navItems: NavItem[] = [
   },
   {
     icon: <Settings className="w-5 h-5" />,
-    label: 'More',
-    path: '/subscriptions',
+    label: 'Settings',
+    path: '/settings',
   },
 ];
 

@@ -14,6 +14,7 @@ import Goals from "./pages/Goals";
 import Subscriptions from "./pages/Subscriptions";
 import Incomes from "./pages/Incomes";
 import PendingActions from "./pages/PendingActions";
+import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -84,6 +85,11 @@ const App = () => {
             <Route path="/pending" element={
               <ProtectedRoute>
                 <PendingActions />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             } />
             <Route path="*" element={

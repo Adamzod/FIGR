@@ -275,6 +275,7 @@ export type Database = {
           payment_type: string
           payoff_period_months: number | null
           total_loan_amount: number | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -288,6 +289,7 @@ export type Database = {
           payment_type: string
           payoff_period_months?: number | null
           total_loan_amount?: number | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -301,6 +303,7 @@ export type Database = {
           payment_type?: string
           payoff_period_months?: number | null
           total_loan_amount?: number | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
