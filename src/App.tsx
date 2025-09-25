@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Auth from "./pages/Auth";
@@ -16,6 +16,7 @@ import Incomes from "./pages/Incomes";
 import PendingActions from "./pages/PendingActions";
 import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { AppLayout } from "./components/layout/AppLayout";
 
 const queryClient = new QueryClient();
 
@@ -52,46 +53,22 @@ const App = () => {
                 <Onboarding />
               </ProtectedRoute>
             } />
-            <Route path="/" element={
+            <Route element={
               <ProtectedRoute>
-                <Dashboard />
+                <AppLayout />
               </ProtectedRoute>
-            } />
-            <Route path="/transactions" element={
-              <ProtectedRoute>
-                <Transactions />
-              </ProtectedRoute>
-            } />
-            <Route path="/categories" element={
-              <ProtectedRoute>
-                <Categories />
-              </ProtectedRoute>
-            } />
-            <Route path="/goals" element={
-              <ProtectedRoute>
-                <Goals />
-              </ProtectedRoute>
-            } />
-            <Route path="/subscriptions" element={
-              <ProtectedRoute>
-                <Subscriptions />
-              </ProtectedRoute>
-            } />
-            <Route path="/incomes" element={
-              <ProtectedRoute>
-                <Incomes />
-              </ProtectedRoute>
-            } />
-            <Route path="/pending" element={
-              <ProtectedRoute>
-                <PendingActions />
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } />
+            }>
+              <Route path="/" element={
+                hasIncomes === false ? <Navigate to="/onboarding" /> : <Dashboard />
+              } />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/goals" element={<Goals />} />
+              <Route path="/subscriptions" element={<Subscriptions />} />
+              <Route path="/incomes" element={<Incomes />} />
+              <Route path="/pending" element={<PendingActions />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
             <Route path="*" element={
               <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
