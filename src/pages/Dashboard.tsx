@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, getMonthDateRange, normalizeToMonthly } from '@/lib/finance-utils';
-import { DollarSign, TrendingUp, PieChart, Plus, LogOut } from 'lucide-react';
+import { DollarSign, TrendingUp, PieChart, Plus, LogOut, Receipt, Target, CreditCard, DollarSign as Income } from 'lucide-react';
+import ReconciliationModal from '@/components/ReconciliationModal';
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
@@ -56,8 +57,29 @@ export default function Dashboard() {
     setLoading(false);
   };
 
+  const navigate = useNavigate();
+  
+  // Check if user needs onboarding
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (user) {
+        const { data: incomes } = await supabase
+          .from('incomes')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+        
+        if (!incomes || incomes.length === 0) {
+          navigate('/onboarding');
+        }
+      }
+    };
+    checkOnboarding();
+  }, [user, navigate]);
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
+      <ReconciliationModal />
       <header className="bg-card border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold gradient-text">FinanceTracker</h1>
@@ -111,7 +133,7 @@ export default function Dashboard() {
                 <CardTitle>Transactions</CardTitle>
               </CardHeader>
               <CardContent>
-                <Plus className="h-8 w-8 text-primary" />
+                <Receipt className="h-8 w-8 text-primary" />
                 <p className="text-sm text-muted-foreground mt-2">Add & manage expenses</p>
               </CardContent>
             </Card>
@@ -135,7 +157,7 @@ export default function Dashboard() {
                 <CardTitle>Goals</CardTitle>
               </CardHeader>
               <CardContent>
-                <TrendingUp className="h-8 w-8 text-primary" />
+                <Target className="h-8 w-8 text-primary" />
                 <p className="text-sm text-muted-foreground mt-2">Track savings goals</p>
               </CardContent>
             </Card>

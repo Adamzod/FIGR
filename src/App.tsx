@@ -8,6 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
+import Transactions from "./pages/Transactions";
+import Categories from "./pages/Categories";
+import Goals from "./pages/Goals";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
