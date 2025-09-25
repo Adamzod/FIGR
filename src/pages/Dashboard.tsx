@@ -6,7 +6,7 @@ import { FAB } from '@/components/layout/FAB';
 import { BudgetCard } from '@/components/dashboard/BudgetCard';
 import { CategoryList } from '@/components/dashboard/CategoryList';
 import { SubscriptionsList } from '@/components/dashboard/SubscriptionsList';
-import { ReconciliationModal } from '@/components/ReconciliationModal';
+import ReconciliationModal from '@/components/ReconciliationModal';
 import { Button } from '@/components/ui/button';
 import { LogOut, User } from 'lucide-react';
 import { getMonthDateRange, normalizeToMonthly } from '@/lib/finance-utils';
