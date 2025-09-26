@@ -10,12 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeToMonthly, getMonthDateRange } from '@/lib/finance-utils';
 import { Plus, Loader2 } from 'lucide-react';
-import { TransactionModal } from '@/components/ui/mobile-modals';
 
 interface Category {
   id: string;
@@ -46,7 +44,6 @@ export default function Dashboard() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [currentMonthRollover, setCurrentMonthRollover] = useState(0);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-  const [isAddingTransaction, setIsAddingTransaction] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
     name: '',
     amount: '',
@@ -175,27 +172,18 @@ export default function Dashboard() {
     }
   };
 
-  const handleAddTransaction = async (transactionData: {
-    name: string;
-    amount: string;
-    category_id: string;
-    date: string;
-    note: string;
-  }) => {
+  const handleAddTransaction = async () => {
     if (!user) return;
-    
-    setIsAddingTransaction(true);
     
     try {
       const { error } = await supabase
         .from('transactions')
         .insert({
           user_id: user.id,
-          name: transactionData.name,
-          amount: parseFloat(transactionData.amount),
-          category_id: transactionData.category_id === 'none' ? null : transactionData.category_id,
-          date: transactionData.date,
-          note: transactionData.note || null,
+          name: newTransaction.name,
+          amount: parseFloat(newTransaction.amount),
+          category_id: newTransaction.category_id === 'none' ? null : newTransaction.category_id,
+          date: newTransaction.date,
         });
       
       if (error) throw error;
@@ -206,6 +194,12 @@ export default function Dashboard() {
       });
       
       setIsTransactionModalOpen(false);
+      setNewTransaction({
+        name: '',
+        amount: '',
+        category_id: 'none',
+        date: new Date().toISOString().split('T')[0],
+      });
       loadDashboardData();
     } catch (error) {
       toast({
@@ -213,15 +207,15 @@ export default function Dashboard() {
         description: "Failed to add transaction",
         variant: "destructive",
       });
-    } finally {
-      setIsAddingTransaction(false);
     }
   };
 
   if (loading) {
     return (
       <MobileLayout>
-        <DashboardSkeleton />
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
       </MobileLayout>
     );
   }
@@ -269,14 +263,76 @@ export default function Dashboard() {
         <FAB onClick={() => setIsTransactionModalOpen(true)} />
 
         {/* Add Transaction Modal */}
-        <TransactionModal
-          isOpen={isTransactionModalOpen}
-          onClose={() => setIsTransactionModalOpen(false)}
-          onSubmit={handleAddTransaction}
-          categories={categories.filter(cat => !cat.is_system).map(cat => ({ id: cat.id, name: cat.name }))}
-          editingTransaction={null}
-          loading={isAddingTransaction}
-        />
+        <Dialog open={isTransactionModalOpen} onOpenChange={setIsTransactionModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Transaction</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={newTransaction.name}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, name: e.target.value })}
+                  placeholder="e.g., Coffee"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="amount">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  value={newTransaction.amount}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Select 
+                  value={newTransaction.category_id} 
+                  onValueChange={(value) => setNewTransaction({ ...newTransaction, category_id: value })}
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No category</SelectItem>
+                    {categories.filter(cat => !cat.is_system).map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={newTransaction.date}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
+                />
+              </div>
+              
+              <Button 
+                onClick={handleAddTransaction} 
+                className="w-full"
+                disabled={!newTransaction.name || !newTransaction.amount}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Transaction
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MobileLayout>
   );

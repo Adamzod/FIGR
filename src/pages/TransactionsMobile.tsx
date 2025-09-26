@@ -7,11 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TransactionModal } from '@/components/ui/mobile-modals';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { TransactionSkeleton } from '@/components/ui/skeletons';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -103,29 +101,23 @@ export default function TransactionsMobile() {
     }
   };
 
-  const handleAddTransaction = async (transactionData: {
-    name: string;
-    amount: string;
-    category_id: string;
-    date: string;
-    note: string;
-  }) => {
+  const handleAddTransaction = async () => {
     if (!user) return;
     
     try {
-      const data = {
+      const transactionData = {
         user_id: user.id,
-        name: transactionData.name,
-        amount: parseFloat(transactionData.amount),
-        category_id: transactionData.category_id === 'none' ? null : transactionData.category_id,
-        date: transactionData.date,
-        note: transactionData.note || null,
+        name: newTransaction.name,
+        amount: parseFloat(newTransaction.amount),
+        category_id: newTransaction.category_id === 'none' ? null : newTransaction.category_id,
+        date: newTransaction.date,
+        note: newTransaction.note || null,
       };
 
       if (editingTransaction) {
         const { error } = await supabase
           .from('transactions')
-          .update(data)
+          .update(transactionData)
           .eq('id', editingTransaction.id);
         
         if (error) throw error;
@@ -137,7 +129,7 @@ export default function TransactionsMobile() {
       } else {
         const { error } = await supabase
           .from('transactions')
-          .insert(data);
+          .insert(transactionData);
         
         if (error) throw error;
         
@@ -149,6 +141,13 @@ export default function TransactionsMobile() {
 
       setIsAddModalOpen(false);
       setEditingTransaction(null);
+      setNewTransaction({
+        name: '',
+        amount: '',
+        category_id: 'none',
+        date: new Date().toISOString().split('T')[0],
+        note: '',
+      });
       loadData();
     } catch (error) {
       toast({
@@ -283,7 +282,9 @@ export default function TransactionsMobile() {
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4">
             {loading ? (
-              <TransactionSkeleton />
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Loading transactions...</p>
+              </div>
             ) : Object.keys(groupedTransactions).length === 0 ? (
               <Card>
                 <CardContent className="text-center py-8">
@@ -380,20 +381,87 @@ export default function TransactionsMobile() {
         }} />
 
         {/* Add/Edit Transaction Modal */}
-        <TransactionModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onSubmit={handleAddTransaction}
-          categories={categories.map(cat => ({ id: cat.id, name: cat.name }))}
-          editingTransaction={editingTransaction ? {
-            name: editingTransaction.name,
-            amount: editingTransaction.amount.toString(),
-            category_id: editingTransaction.category_id || 'none',
-            date: editingTransaction.date,
-            note: editingTransaction.note || '',
-          } : null}
-          loading={false}
-        />
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {editingTransaction ? 'Edit Transaction' : 'Add Transaction'}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={newTransaction.name}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, name: e.target.value })}
+                  placeholder="e.g., Grocery shopping"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="amount">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  value={newTransaction.amount}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Select 
+                  value={newTransaction.category_id} 
+                  onValueChange={(value) => setNewTransaction({ ...newTransaction, category_id: value })}
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No category</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={newTransaction.date}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="note">Note (optional)</Label>
+                <Input
+                  id="note"
+                  value={newTransaction.note}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, note: e.target.value })}
+                  placeholder="Add a note..."
+                />
+              </div>
+              
+              <Button 
+                onClick={handleAddTransaction} 
+                className="w-full"
+                disabled={!newTransaction.name || !newTransaction.amount}
+              >
+                {editingTransaction ? 'Update Transaction' : 'Add Transaction'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MobileLayout>
   );

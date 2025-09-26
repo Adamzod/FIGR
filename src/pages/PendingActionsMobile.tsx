@@ -6,9 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { PendingActionModal } from '@/components/ui/mobile-modals';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PendingActionsSkeleton } from '@/components/ui/skeletons';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -72,7 +70,7 @@ export default function PendingActionsMobile() {
     }
   };
 
-  const handleCompleteAction = async (amount: number) => {
+  const handleCompleteAction = async () => {
     if (!user || !selectedAction) return;
     
     try {
@@ -82,7 +80,7 @@ export default function PendingActionsMobile() {
         .insert({
           user_id: user.id,
           name: selectedAction.payload.subscription_name || 'Variable Bill Payment',
-          amount: amount,
+          amount: parseFloat(completionAmount),
           date: new Date().toISOString().split('T')[0],
           category_id: selectedAction.payload.category_id || null,
           note: 'Variable subscription payment',
@@ -125,6 +123,7 @@ export default function PendingActionsMobile() {
       });
       
       setIsCompleteModalOpen(false);
+      setCompletionAmount('');
       setSelectedAction(null);
       loadPendingActions();
     } catch (error) {
@@ -235,7 +234,9 @@ export default function PendingActionsMobile() {
         {/* Actions List */}
         <div className="flex-1 p-4 space-y-4">
           {loading ? (
-            <PendingActionsSkeleton />
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Loading pending actions...</p>
+            </div>
           ) : pendingActions.length === 0 ? (
             <Card>
               <CardContent className="text-center py-8">
@@ -311,14 +312,45 @@ export default function PendingActionsMobile() {
         </div>
 
         {/* Complete Action Modal */}
-        <PendingActionModal
-          isOpen={isCompleteModalOpen}
-          onClose={() => setIsCompleteModalOpen(false)}
-          onSubmit={handleCompleteAction}
-          actionTitle={selectedAction ? getActionTitle(selectedAction) : ''}
-          dueDate={selectedAction?.due_date || ''}
-          loading={false}
-        />
+        <Dialog open={isCompleteModalOpen} onOpenChange={setIsCompleteModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Complete Action</DialogTitle>
+            </DialogHeader>
+            
+            {selectedAction && (
+              <div className="space-y-4">
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="font-medium">{getActionTitle(selectedAction)}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Due: {formatDate(selectedAction.due_date)}
+                  </p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="amount">Amount</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    value={completionAmount}
+                    onChange={(e) => setCompletionAmount(e.target.value)}
+                    placeholder="Enter this month's amount"
+                  />
+                </div>
+                
+                <Button 
+                  onClick={handleCompleteAction} 
+                  className="w-full"
+                  disabled={!completionAmount || parseFloat(completionAmount) <= 0}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Complete Payment
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </MobileLayout>
   );

@@ -7,10 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { IncomeModal } from '@/components/ui/mobile-modals';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { IncomeSkeleton } from '@/components/ui/skeletons';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -76,25 +74,21 @@ export default function IncomesMobile() {
     }
   };
 
-  const handleSaveIncome = async (incomeData: {
-    source_name: string;
-    amount: string;
-    frequency: string;
-  }) => {
+  const handleSaveIncome = async () => {
     if (!user) return;
     
     try {
-      const data = {
+      const incomeData = {
         user_id: user.id,
-        source_name: incomeData.source_name,
-        amount: parseFloat(incomeData.amount),
-        frequency: incomeData.frequency,
+        source_name: newIncome.source_name,
+        amount: parseFloat(newIncome.amount),
+        frequency: newIncome.frequency,
       };
 
       if (editingIncome) {
         const { error } = await supabase
           .from('incomes')
-          .update(data)
+          .update(incomeData)
           .eq('id', editingIncome.id);
         
         if (error) throw error;
@@ -106,7 +100,7 @@ export default function IncomesMobile() {
       } else {
         const { error } = await supabase
           .from('incomes')
-          .insert(data);
+          .insert(incomeData);
         
         if (error) throw error;
         
@@ -118,6 +112,11 @@ export default function IncomesMobile() {
 
       setIsAddModalOpen(false);
       setEditingIncome(null);
+      setNewIncome({
+        source_name: '',
+        amount: '',
+        frequency: 'monthly',
+      });
       loadIncomes();
     } catch (error) {
       toast({
@@ -244,7 +243,9 @@ export default function IncomesMobile() {
         {/* Income List */}
         <div className="flex-1 p-4 space-y-3">
           {loading ? (
-            <IncomeSkeleton />
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Loading income sources...</p>
+            </div>
           ) : incomes.length === 0 ? (
             <Card>
               <CardContent className="text-center py-8">
@@ -332,17 +333,73 @@ export default function IncomesMobile() {
         }} />
 
         {/* Add/Edit Income Modal */}
-        <IncomeModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onSubmit={handleSaveIncome}
-          editingIncome={editingIncome ? {
-            source_name: editingIncome.source_name,
-            amount: editingIncome.amount.toString(),
-            frequency: editingIncome.frequency,
-          } : null}
-          loading={false}
-        />
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {editingIncome ? 'Edit Income Source' : 'Add Income Source'}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="source">Source Name</Label>
+                <Input
+                  id="source"
+                  value={newIncome.source_name}
+                  onChange={(e) => setNewIncome({ ...newIncome, source_name: e.target.value })}
+                  placeholder="e.g., Main Job"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="amount">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  value={newIncome.amount}
+                  onChange={(e) => setNewIncome({ ...newIncome, amount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="frequency">Frequency</Label>
+                <Select 
+                  value={newIncome.frequency} 
+                  onValueChange={(value) => setNewIncome({ ...newIncome, frequency: value })}
+                >
+                  <SelectTrigger id="frequency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="bi-weekly">Bi-weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {newIncome.amount && (
+                <Alert>
+                  <DollarSign className="h-4 w-4" />
+                  <AlertDescription>
+                    This will contribute {formatCurrency(normalizeToMonthly(parseFloat(newIncome.amount), newIncome.frequency))} to your monthly income
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              <Button 
+                onClick={handleSaveIncome} 
+                className="w-full"
+                disabled={!newIncome.source_name || !newIncome.amount}
+              >
+                {editingIncome ? 'Update Income' : 'Add Income'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MobileLayout>
   );
