@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ReconciliationModal as MobileReconciliationModal } from '@/components/ui/mobile-modals';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/finance-utils';
 import { TrendingUp, PiggyBank, AlertCircle } from 'lucide-react';
@@ -14,6 +16,7 @@ import { TrendingUp, PiggyBank, AlertCircle } from 'lucide-react';
 export default function ReconciliationModal() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
   const [reconciliation, setReconciliation] = useState<any>(null);
   const [goals, setGoals] = useState<any[]>([]);
@@ -53,8 +56,8 @@ export default function ReconciliationModal() {
     }
   };
 
-  const handleDecision = async () => {
-    if (decision === 'goal_contribution' && !selectedGoalId) {
+  const handleDecision = async (decisionType: 'rollover' | 'goal_contribution', goalId?: string) => {
+    if (decisionType === 'goal_contribution' && !goalId) {
       toast({
         title: "Please select a goal",
         description: "You must choose a goal to contribute to",
@@ -67,8 +70,8 @@ export default function ReconciliationModal() {
 
     const { data, error } = await supabase.functions.invoke('apply-reconciliation-decision', {
       body: {
-        decision,
-        target_goal_id: decision === 'goal_contribution' ? selectedGoalId : null,
+        decision: decisionType,
+        target_goal_id: decisionType === 'goal_contribution' ? goalId : null,
         reconciliation_id: reconciliation.id,
       },
     });
@@ -82,7 +85,7 @@ export default function ReconciliationModal() {
     } else {
       toast({
         title: "Success!",
-        description: decision === 'rollover' 
+        description: decisionType === 'rollover' 
           ? "Surplus has been rolled over to this month" 
           : "Surplus has been contributed to your goal",
       });
@@ -93,6 +96,24 @@ export default function ReconciliationModal() {
   };
 
   if (!reconciliation) return null;
+
+  if (isMobile) {
+    return (
+      <MobileReconciliationModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        onSubmit={handleDecision}
+        surplusAmount={parseFloat(reconciliation.surplus_amount)}
+        goals={goals.map(goal => ({
+          id: goal.id,
+          goal_name: goal.goal_name,
+          current_amount: parseFloat(goal.current_amount),
+          target_amount: parseFloat(goal.target_amount),
+        }))}
+        loading={isProcessing}
+      />
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -168,7 +189,7 @@ export default function ReconciliationModal() {
           )}
 
           <Button 
-            onClick={handleDecision} 
+            onClick={() => handleDecision(decision, selectedGoalId)} 
             className="w-full"
             disabled={isProcessing}
           >

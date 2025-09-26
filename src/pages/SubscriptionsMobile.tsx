@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SubscriptionModal } from '@/components/ui/mobile-modals';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -88,30 +89,38 @@ export default function SubscriptionsMobile() {
     }
   };
 
-  const handleSaveSubscription = async () => {
+  const handleSaveSubscription = async (subscriptionData: {
+    name: string;
+    payment_type: string;
+    amount: string;
+    total_loan_amount: string;
+    payoff_period_months: string;
+    next_due_date: string;
+    billing_cycle: string;
+  }) => {
     if (!user) return;
     
     try {
-      const subscriptionData: any = {
+      const data: any = {
         user_id: user.id,
-        name: newSubscription.name,
-        payment_type: newSubscription.payment_type,
-        next_due_date: newSubscription.next_due_date,
-        billing_cycle: newSubscription.billing_cycle,
+        name: subscriptionData.name,
+        payment_type: subscriptionData.payment_type,
+        next_due_date: subscriptionData.next_due_date,
+        billing_cycle: subscriptionData.billing_cycle,
       };
 
-      if (newSubscription.payment_type === 'fixed_term') {
-        subscriptionData.total_loan_amount = parseFloat(newSubscription.total_loan_amount);
-        subscriptionData.payoff_period_months = parseInt(newSubscription.payoff_period_months);
-        subscriptionData.amount = subscriptionData.total_loan_amount / subscriptionData.payoff_period_months;
-      } else if (newSubscription.payment_type !== 'variable_recurring') {
-        subscriptionData.amount = parseFloat(newSubscription.amount);
+      if (subscriptionData.payment_type === 'fixed_term') {
+        data.total_loan_amount = parseFloat(subscriptionData.total_loan_amount);
+        data.payoff_period_months = parseInt(subscriptionData.payoff_period_months);
+        data.amount = data.total_loan_amount / data.payoff_period_months;
+      } else if (subscriptionData.payment_type !== 'variable_recurring') {
+        data.amount = parseFloat(subscriptionData.amount);
       }
 
       if (editingSubscription) {
         const { error } = await supabase
           .from('subscriptions')
-          .update(subscriptionData)
+          .update(data)
           .eq('id', editingSubscription.id);
         
         if (error) throw error;
@@ -123,7 +132,7 @@ export default function SubscriptionsMobile() {
       } else {
         const { error } = await supabase
           .from('subscriptions')
-          .insert(subscriptionData);
+          .insert(data);
         
         if (error) throw error;
         
@@ -135,15 +144,6 @@ export default function SubscriptionsMobile() {
 
       setIsAddModalOpen(false);
       setEditingSubscription(null);
-      setNewSubscription({
-        name: '',
-        payment_type: 'recurring',
-        amount: '',
-        total_loan_amount: '',
-        payoff_period_months: '',
-        next_due_date: new Date().toISOString().split('T')[0],
-        billing_cycle: 'monthly',
-      });
       loadSubscriptions();
     } catch (error) {
       toast({
@@ -422,131 +422,21 @@ export default function SubscriptionsMobile() {
         }} />
 
         {/* Add/Edit Subscription Modal */}
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingSubscription ? 'Edit Subscription' : 'Add Subscription'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={newSubscription.name}
-                  onChange={(e) => setNewSubscription({ ...newSubscription, name: e.target.value })}
-                  placeholder="e.g., Netflix"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="type">Payment Type</Label>
-                <Select 
-                  value={newSubscription.payment_type} 
-                  onValueChange={(value) => setNewSubscription({ ...newSubscription, payment_type: value })}
-                >
-                  <SelectTrigger id="type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recurring">Recurring (Fixed Amount)</SelectItem>
-                    <SelectItem value="fixed_term">Fixed Term (Loan/Payment Plan)</SelectItem>
-                    <SelectItem value="variable_recurring">Variable (Amount Changes)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {newSubscription.payment_type === 'recurring' && (
-                <div>
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    value={newSubscription.amount}
-                    onChange={(e) => setNewSubscription({ ...newSubscription, amount: e.target.value })}
-                    placeholder="0.00"
-                  />
-                </div>
-              )}
-              
-              {newSubscription.payment_type === 'fixed_term' && (
-                <>
-                  <div>
-                    <Label htmlFor="total">Total Loan Amount</Label>
-                    <Input
-                      id="total"
-                      type="number"
-                      step="0.01"
-                      value={newSubscription.total_loan_amount}
-                      onChange={(e) => setNewSubscription({ ...newSubscription, total_loan_amount: e.target.value })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="months">Payoff Period (months)</Label>
-                    <Input
-                      id="months"
-                      type="number"
-                      value={newSubscription.payoff_period_months}
-                      onChange={(e) => setNewSubscription({ ...newSubscription, payoff_period_months: e.target.value })}
-                      placeholder="12"
-                    />
-                  </div>
-                  {newSubscription.total_loan_amount && newSubscription.payoff_period_months && (
-                    <Alert>
-                      <Calculator className="h-4 w-4" />
-                      <AlertDescription>
-                        Monthly payment: {formatCurrency(
-                          parseFloat(newSubscription.total_loan_amount) / parseInt(newSubscription.payoff_period_months)
-                        )}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </>
-              )}
-              
-              <div>
-                <Label htmlFor="due">Next Due Date</Label>
-                <Input
-                  id="due"
-                  type="date"
-                  value={newSubscription.next_due_date}
-                  onChange={(e) => setNewSubscription({ ...newSubscription, next_due_date: e.target.value })}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="cycle">Billing Cycle</Label>
-                <Select 
-                  value={newSubscription.billing_cycle} 
-                  onValueChange={(value) => setNewSubscription({ ...newSubscription, billing_cycle: value })}
-                >
-                  <SelectTrigger id="cycle">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="bi-weekly">Bi-weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                    <SelectItem value="yearly">Yearly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <Button 
-                onClick={handleSaveSubscription} 
-                className="w-full"
-                disabled={!newSubscription.name || !newSubscription.next_due_date}
-              >
-                {editingSubscription ? 'Update Subscription' : 'Add Subscription'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <SubscriptionModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSubmit={handleSaveSubscription}
+          editingSubscription={editingSubscription ? {
+            name: editingSubscription.name,
+            payment_type: editingSubscription.payment_type,
+            amount: editingSubscription.amount?.toString() || '',
+            total_loan_amount: editingSubscription.total_loan_amount?.toString() || '',
+            payoff_period_months: editingSubscription.payoff_period_months?.toString() || '',
+            next_due_date: editingSubscription.next_due_date,
+            billing_cycle: editingSubscription.billing_cycle,
+          } : null}
+          loading={false}
+        />
       </div>
     </MobileLayout>
   );
