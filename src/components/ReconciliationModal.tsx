@@ -10,13 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/finance-utils';
 import { TrendingUp, PiggyBank, AlertCircle } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { MobileReconciliationModal } from '@/components/mobile/MobileReconciliationModal';
 
 export default function ReconciliationModal() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
   const [reconciliation, setReconciliation] = useState<any>(null);
   const [goals, setGoals] = useState<any[]>([]);
@@ -97,25 +94,6 @@ export default function ReconciliationModal() {
 
   if (!reconciliation) return null;
 
-  // Mobile version
-  if (isMobile) {
-    return (
-      <MobileReconciliationModal
-        open={isOpen}
-        onOpenChange={setIsOpen}
-        surplus={parseFloat(reconciliation.surplus_amount)}
-        goals={goals}
-        onDecision={async (dec, goalId) => {
-          setDecision(dec);
-          setSelectedGoalId(goalId || '');
-          await handleDecision();
-        }}
-        isProcessing={isProcessing}
-      />
-    );
-  }
-
-  // Desktop version
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-md">
