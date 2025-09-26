@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CategoryModal } from '@/components/ui/mobile-modals';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CategorySkeleton } from '@/components/ui/skeletons';
@@ -121,13 +122,17 @@ export default function CategoriesMobile() {
     }
   };
 
-  const handleSaveCategory = async () => {
+  const handleSaveCategory = async (categoryData: {
+    name: string;
+    allocated_percentage: number;
+    display_schedule: string;
+  }) => {
     if (!user) return;
     
     // Validate total allocation
     const newTotal = editingCategory 
-      ? totalAllocated - editingCategory.allocated_percentage + newCategory.allocated_percentage
-      : totalAllocated + newCategory.allocated_percentage;
+      ? totalAllocated - editingCategory.allocated_percentage + categoryData.allocated_percentage
+      : totalAllocated + categoryData.allocated_percentage;
     
     if (newTotal > 1) {
       toast({
@@ -139,17 +144,17 @@ export default function CategoriesMobile() {
     }
     
     try {
-      const categoryData = {
+      const data = {
         user_id: user.id,
-        name: newCategory.name,
-        allocated_percentage: newCategory.allocated_percentage,
-        display_schedule: newCategory.display_schedule,
+        name: categoryData.name,
+        allocated_percentage: categoryData.allocated_percentage,
+        display_schedule: categoryData.display_schedule,
       };
 
       if (editingCategory) {
         const { error } = await supabase
           .from('categories')
-          .update(categoryData)
+          .update(data)
           .eq('id', editingCategory.id);
         
         if (error) throw error;
@@ -161,7 +166,7 @@ export default function CategoriesMobile() {
       } else {
         const { error } = await supabase
           .from('categories')
-          .insert(categoryData);
+          .insert(data);
         
         if (error) throw error;
         
@@ -173,11 +178,6 @@ export default function CategoriesMobile() {
 
       setIsAddModalOpen(false);
       setEditingCategory(null);
-      setNewCategory({
-        name: '',
-        allocated_percentage: 0,
-        display_schedule: 'monthly',
-      });
       loadData();
     } catch (error) {
       toast({
@@ -413,72 +413,18 @@ export default function CategoriesMobile() {
         }} />
 
         {/* Add/Edit Category Modal */}
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingCategory ? 'Edit Category' : 'Create Category'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Category Name</Label>
-                <Input
-                  id="name"
-                  value={newCategory.name}
-                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                  placeholder="e.g., Groceries"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="percentage">
-                  Budget Allocation: {Math.round(newCategory.allocated_percentage * 100)}%
-                </Label>
-                <Slider
-                  id="percentage"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={[newCategory.allocated_percentage * 100]}
-                  onValueChange={([value]) => 
-                    setNewCategory({ ...newCategory, allocated_percentage: value / 100 })
-                  }
-                  className="mt-2"
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Monthly budget: {formatCurrency(totalIncome * newCategory.allocated_percentage)}
-                </p>
-              </div>
-              
-              <div>
-                <Label htmlFor="schedule">Display Schedule</Label>
-                <Select 
-                  value={newCategory.display_schedule} 
-                  onValueChange={(value) => setNewCategory({ ...newCategory, display_schedule: value })}
-                >
-                  <SelectTrigger id="schedule">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="bi-weekly">Bi-weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <Button 
-                onClick={handleSaveCategory} 
-                className="w-full"
-                disabled={!newCategory.name || newCategory.allocated_percentage === 0}
-              >
-                {editingCategory ? 'Update Category' : 'Create Category'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <CategoryModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSubmit={handleSaveCategory}
+          editingCategory={editingCategory ? {
+            name: editingCategory.name,
+            allocated_percentage: editingCategory.allocated_percentage,
+            display_schedule: editingCategory.display_schedule,
+          } : null}
+          totalIncome={totalIncome}
+          loading={false}
+        />
       </div>
     </MobileLayout>
   );
