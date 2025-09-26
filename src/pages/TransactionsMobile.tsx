@@ -4,8 +4,7 @@ import { FAB } from '@/components/layout/FAB';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MobileTransactionModal } from '@/components/mobile/MobileTransactionModal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -102,17 +101,17 @@ export default function TransactionsMobile() {
     }
   };
 
-  const handleAddTransaction = async () => {
+  const handleAddTransaction = async (transaction: typeof newTransaction) => {
     if (!user) return;
     
     try {
       const transactionData = {
         user_id: user.id,
-        name: newTransaction.name,
-        amount: parseFloat(newTransaction.amount),
-        category_id: newTransaction.category_id === 'none' ? null : newTransaction.category_id,
-        date: newTransaction.date,
-        note: newTransaction.note || null,
+        name: transaction.name,
+        amount: parseFloat(transaction.amount),
+        category_id: transaction.category_id === 'none' ? null : transaction.category_id,
+        date: transaction.date,
+        note: transaction.note || null,
       };
 
       if (editingTransaction) {
@@ -380,87 +379,14 @@ export default function TransactionsMobile() {
         }} />
 
         {/* Add/Edit Transaction Modal */}
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingTransaction ? 'Edit Transaction' : 'Add Transaction'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={newTransaction.name}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, name: e.target.value })}
-                  placeholder="e.g., Grocery shopping"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="amount">Amount</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  value={newTransaction.amount}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
-                  placeholder="0.00"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="category">Category</Label>
-                <Select 
-                  value={newTransaction.category_id} 
-                  onValueChange={(value) => setNewTransaction({ ...newTransaction, category_id: value })}
-                >
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No category</SelectItem>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="date">Date</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={newTransaction.date}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="note">Note (optional)</Label>
-                <Input
-                  id="note"
-                  value={newTransaction.note}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, note: e.target.value })}
-                  placeholder="Add a note..."
-                />
-              </div>
-              
-              <Button 
-                onClick={handleAddTransaction} 
-                className="w-full"
-                disabled={!newTransaction.name || !newTransaction.amount}
-              >
-                {editingTransaction ? 'Update Transaction' : 'Add Transaction'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <MobileTransactionModal
+          open={isAddModalOpen}
+          onOpenChange={setIsAddModalOpen}
+          transaction={newTransaction}
+          categories={categories}
+          onSave={handleAddTransaction}
+          isEditing={!!editingTransaction}
+        />
       </div>
     </MobileLayout>
   );

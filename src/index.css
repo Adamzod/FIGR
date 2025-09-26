@@ -183,6 +183,17 @@
 }
 
 @layer utilities {
+  /* Safe area padding for mobile devices */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Touch target minimum size */
+  .touch-target {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  
   /* Animation classes */
   @keyframes slide-up {
     from {
