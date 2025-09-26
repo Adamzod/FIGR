@@ -100,7 +100,7 @@ export function AppSidebar() {
           </div>
           {!isCollapsed && (
             <div>
-              <h2 className="text-lg font-semibold">Finance Tracker</h2>
+              <h2 className="text-lg font-semibold">FIGR</h2>
               <p className="text-xs text-muted-foreground">Manage your money</p>
             </div>
           )}
@@ -138,11 +138,11 @@ export function AppSidebar() {
             </div>
           )}
         </div>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex  flex-col gap-2">
           <Button
             variant="ghost"
             size="sm"
-            className="flex-1 justify-start"
+            className="flex-1 justify-start w-full bg-secondary p-2 hover:bg-primary/10  transition-colors"
             asChild
           >
             <NavLink to="/settings">
@@ -154,7 +154,7 @@ export function AppSidebar() {
             variant="ghost"
             size="sm"
             onClick={handleSignOut}
-            className="flex-1 justify-start"
+            className="flex-1 justify-start w-full bg-secondary p-2 hover:bg-primary/10  transition-colors"
           >
             <LogOut className="h-4 w-4" />
             {!isCollapsed && <span className="ml-2">Sign Out</span>}

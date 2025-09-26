@@ -1,9 +1,8 @@
 import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { BottomNav } from './BottomNav';
-import { FAB } from './FAB';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
@@ -14,11 +13,6 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, className }: AppLayoutProps) {
   const isMobile = useIsMobile();
-  const navigate = useNavigate();
-
-  const handleAddTransaction = () => {
-    navigate('/transactions');
-  };
 
   if (isMobile) {
     // Mobile layout with bottom navigation
@@ -28,7 +22,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
           {children || <Outlet />}
         </main>
         <BottomNav />
-        <FAB onClick={handleAddTransaction} />
+        {/* FAB removed - each mobile page handles its own context-aware FAB */}
       </div>
     );
   }
@@ -39,7 +33,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex-1">
-          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-border bg-background px-6">
+          <header className="sticky top-0 z-40 flex h-14  items-center gap-4 border-b border-border bg-background px-6">
             <SidebarTrigger className="-ml-2" />
             <div className="flex-1" />
           </header>

@@ -3,20 +3,23 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import Onboarding from "./pages/Onboarding";
-import Transactions from "./pages/Transactions";
-import Categories from "./pages/Categories";
-import Goals from "./pages/Goals";
-import Subscriptions from "./pages/Subscriptions";
-import Incomes from "./pages/Incomes";
-import PendingActions from "./pages/PendingActions";
-import Settings from "./pages/Settings";
+import { DashboardSkeleton } from "@/components/ui/skeletons";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
+
+// Lazy load all page components
+const Auth = lazy(() => import("./pages/Auth"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const Transactions = lazy(() => import("./pages/Transactions"));
+const Categories = lazy(() => import("./pages/Categories"));
+const Goals = lazy(() => import("./pages/Goals"));
+const Subscriptions = lazy(() => import("./pages/Subscriptions"));
+const Incomes = lazy(() => import("./pages/Incomes"));
+const PendingActions = lazy(() => import("./pages/PendingActions"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 const queryClient = new QueryClient();
 
@@ -47,10 +50,16 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/auth" element={<Auth />} />
+            <Route path="/auth" element={
+              <Suspense fallback={<DashboardSkeleton />}>
+                <Auth />
+              </Suspense>
+            } />
             <Route path="/onboarding" element={
               <ProtectedRoute>
-                <Onboarding />
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <Onboarding />
+                </Suspense>
               </ProtectedRoute>
             } />
             <Route element={
@@ -59,15 +68,47 @@ const App = () => {
               </ProtectedRoute>
             }>
               <Route path="/" element={
-                hasIncomes === false ? <Navigate to="/onboarding" /> : <Dashboard />
+                hasIncomes === false ? <Navigate to="/onboarding" /> : (
+                  <Suspense fallback={<DashboardSkeleton />}>
+                    <Dashboard />
+                  </Suspense>
+                )
               } />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/categories" element={<Categories />} />
-              <Route path="/goals" element={<Goals />} />
-              <Route path="/subscriptions" element={<Subscriptions />} />
-              <Route path="/incomes" element={<Incomes />} />
-              <Route path="/pending" element={<PendingActions />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/transactions" element={
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <Transactions />
+                </Suspense>
+              } />
+              <Route path="/categories" element={
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <Categories />
+                </Suspense>
+              } />
+              <Route path="/goals" element={
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <Goals />
+                </Suspense>
+              } />
+              <Route path="/subscriptions" element={
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <Subscriptions />
+                </Suspense>
+              } />
+              <Route path="/incomes" element={
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <Incomes />
+                </Suspense>
+              } />
+              <Route path="/pending" element={
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <PendingActions />
+                </Suspense>
+              } />
+              <Route path="/settings" element={
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <Settings />
+                </Suspense>
+              } />
             </Route>
             <Route path="*" element={
               <div className="min-h-screen flex items-center justify-center">

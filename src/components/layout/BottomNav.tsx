@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Receipt, Target, Menu } from 'lucide-react';
+import { Home, FolderOpen, Target, DollarSign , CreditCard} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -53,9 +53,14 @@ export function BottomNav() {
       path: '/',
     },
     {
-      icon: <Receipt className="w-5 h-5" />,
-      label: 'Transactions',
-      path: '/transactions',
+      icon: <FolderOpen className="w-5 h-5" />,
+      label: 'Categories',
+      path: '/categories',
+    },
+    {
+      icon: <CreditCard className="w-5 h-5" />,
+      label: 'Subs',
+      path: '/subscriptions',
     },
     {
       icon: <Target className="w-5 h-5" />,
@@ -63,16 +68,15 @@ export function BottomNav() {
       path: '/goals',
     },
     {
-      icon: <Menu className="w-5 h-5" />,
-      label: 'More',
-      path: '/categories',
-      badge: pendingCount,
+      icon: <DollarSign className="w-5 h-5" />,
+      label: 'Incomes',
+      path: '/incomes',
     },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-lg md:hidden">
-      <div className="grid grid-cols-4 h-16">
+      <div className="grid grid-cols-5 h-16">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
@@ -89,7 +93,7 @@ export function BottomNav() {
               {item.badge && item.badge > 0 && (
                 <Badge 
                   variant="destructive" 
-                  className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                  className="absolute -top-2 -right-2 h-5  w-5 p-0 flex items-center justify-center text-xs"
                 >
                   {item.badge}
                 </Badge>

@@ -91,31 +91,33 @@ export function EnhancedDashboard({
   return (
     <div className="space-y-4">
       {/* Main Budget Card */}
-      <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+      <Card className="bg-white">
         <CardContent className="p-6">
-          <div className="text-center space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">Available This Month</p>
+          <div className="space-y-4">
+            <div className="space-y-4">
+              <p className="text-md font-bold mb-2">Available This Month</p>
               <p className={cn(
-                'text-5xl font-bold tabular-nums',
+                'text-4xl font-bold tabular-nums',
                 isOverBudget ? 'text-danger' : 'text-foreground'
               )}>
-                {formatCurrency(actualAvailable)}
-              </p>
-              {currentMonthRollover > 0 && (
-                <p className="text-sm text-success mt-1">
+                {formatCurrency(availableFunds + totalSpent)}
+                {currentMonthRollover > 0 && (
+                <p className="text-sm font-semibold text-green-600 mt-1">
                   +{formatCurrency(currentMonthRollover)} rollover
+                  No rollover
                 </p>
               )}
+              </p>
+          
             </div>
             
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  Spent: {formatCurrency(totalSpent)}
-                </span>
-                <span className="font-medium">
-                  {Math.round(spentPercentage)}%
+                <p className="text-sm font-medium text-muted-foreground">
+                  Spent Amount:
+                </p>
+                <span className="text-sm font-medium text-muted-foreground">
+                  {formatCurrency(totalSpent)}
                 </span>
               </div>
               
@@ -123,18 +125,44 @@ export function EnhancedDashboard({
                 value={Math.min(spentPercentage, 100)} 
                 className={cn(
                   'h-3',
+                  'z-1',
                   isOverBudget && '[&>div]:bg-danger'
                 )}
               />
+              <div className="flex justify-between text-sm">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Remaining {formatCurrency(actualAvailable)}
+                </p>
+                <span className="font-medium text-muted-foreground">
+                  {Math.round(spentPercentage)}%
+                </span>
+              </div>
+
               
-              <p className="text-xs text-muted-foreground text-center">
-                of {formatCurrency(totalIncome)} monthly income
-              </p>
             </div>
           </div>
         </CardContent>
       </Card>
-
+      {/* Monthly Summary */}
+      <Card className="bg-muted/50">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Income</p>
+              <p className="font-bold text-success">{formatCurrency(totalIncome)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Expenses</p>
+              <p className="font-bold text-danger">{formatCurrency(totalSpent)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Saved</p>
+              <p className="font-bold text-primary">{formatCurrency(goalContributions)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
       {/* Quick Stats */}
       <div className="grid grid-cols-2 gap-3">
         <Card>
@@ -237,25 +265,7 @@ export function EnhancedDashboard({
         </CardContent>
       </Card>
 
-      {/* Monthly Summary */}
-      <Card className="bg-muted/50">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Income</p>
-              <p className="font-bold text-success">{formatCurrency(totalIncome)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Expenses</p>
-              <p className="font-bold text-danger">{formatCurrency(totalSpent)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Saved</p>
-              <p className="font-bold text-primary">{formatCurrency(goalContributions)}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
     </div>
   );
 }

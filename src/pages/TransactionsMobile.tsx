@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { TransactionSkeleton } from '@/components/ui/skeletons';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -223,7 +224,7 @@ export default function TransactionsMobile() {
     <MobileLayout>
       <div className="flex flex-col min-h-screen bg-background">
         {/* Header */}
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="sticky top-0 z-40 md:top-16 bg-background/95 backdrop-blur md:rounded-md md:border-b-2 md:border-gray-200 supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="p-4">
             <h1 className="text-2xl font-bold mb-3">Transactions</h1>
             
@@ -282,9 +283,7 @@ export default function TransactionsMobile() {
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4">
             {loading ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Loading transactions...</p>
-              </div>
+              <TransactionSkeleton />
             ) : Object.keys(groupedTransactions).length === 0 ? (
               <Card>
                 <CardContent className="text-center py-8">

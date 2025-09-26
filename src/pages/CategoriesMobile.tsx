@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CategorySkeleton } from '@/components/ui/skeletons';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -253,7 +254,7 @@ export default function CategoriesMobile() {
     <MobileLayout>
       <div className="flex flex-col min-h-screen bg-background">
         {/* Header */}
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur md:border-b-1 md:border-gray-200 md:top-16 supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="p-4">
             <h1 className="text-2xl font-bold mb-3">Categories</h1>
             
@@ -300,9 +301,7 @@ export default function CategoriesMobile() {
         {/* Categories List */}
         <div className="flex-1 p-4 space-y-3">
           {loading ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Loading categories...</p>
-            </div>
+            <CategorySkeleton />
           ) : categories.length === 0 ? (
             <Card>
               <CardContent className="text-center py-8">

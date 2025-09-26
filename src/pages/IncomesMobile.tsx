@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { IncomeSkeleton } from '@/components/ui/skeletons';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -199,7 +200,7 @@ export default function IncomesMobile() {
     <MobileLayout>
       <div className="flex flex-col min-h-screen bg-background">
         {/* Header */}
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="sticky top-0 z-40 bg-background/95 md:border-b-1 md:border-gray-200 md:top-16 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="p-4">
             <h1 className="text-2xl font-bold mb-3">Income Sources</h1>
             
@@ -243,9 +244,7 @@ export default function IncomesMobile() {
         {/* Income List */}
         <div className="flex-1 p-4 space-y-3">
           {loading ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Loading income sources...</p>
-            </div>
+            <IncomeSkeleton />
           ) : incomes.length === 0 ? (
             <Card>
               <CardContent className="text-center py-8">

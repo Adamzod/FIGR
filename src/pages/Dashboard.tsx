@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeToMonthly, getMonthDateRange } from '@/lib/finance-utils';
@@ -213,9 +214,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <MobileLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <DashboardSkeleton />
       </MobileLayout>
     );
   }
@@ -224,12 +223,14 @@ export default function Dashboard() {
     <MobileLayout>
       <div className="flex flex-col min-h-screen bg-background">
         {/* Header */}
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="sticky top-0 md:top-16  z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:rounded-md border-b-2 border-gray-200">
           <div className="p-4">
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm text-muted-foreground">Welcome back</p>
-                <h1 className="text-2xl font-bold">Dashboard</h1>
+                <h1 className="text-sm font-bold">
+                  {user?.user_metadata?.full_name || user?.email || "User"}
+                </h1>
               </div>
               <Button
                 variant="outline"
