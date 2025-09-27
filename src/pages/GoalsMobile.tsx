@@ -8,10 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { GoalModal, ContributionModal } from '@/components/ui/mobile-modals';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GoalSkeleton } from '@/components/ui/skeletons';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -104,25 +102,21 @@ export default function GoalsMobile() {
     }
   };
 
-  const handleSaveGoal = async (goalData: {
-    goal_name: string;
-    target_amount: string;
-    target_date: string;
-  }) => {
+  const handleSaveGoal = async () => {
     if (!user) return;
     
     try {
-      const data = {
+      const goalData = {
         user_id: user.id,
-        goal_name: goalData.goal_name,
-        target_amount: parseFloat(goalData.target_amount),
-        target_date: goalData.target_date || null,
+        goal_name: newGoal.goal_name,
+        target_amount: parseFloat(newGoal.target_amount),
+        target_date: newGoal.target_date || null,
       };
 
       if (editingGoal) {
         const { error } = await supabase
           .from('goals')
-          .update(data)
+          .update(goalData)
           .eq('id', editingGoal.id);
         
         if (error) throw error;
@@ -134,7 +128,7 @@ export default function GoalsMobile() {
       } else {
         const { error } = await supabase
           .from('goals')
-          .insert(data);
+          .insert(goalData);
         
         if (error) throw error;
         
@@ -146,6 +140,11 @@ export default function GoalsMobile() {
 
       setIsAddModalOpen(false);
       setEditingGoal(null);
+      setNewGoal({
+        goal_name: '',
+        target_amount: '',
+        target_date: '',
+      });
       loadData();
     } catch (error) {
       toast({
@@ -156,7 +155,7 @@ export default function GoalsMobile() {
     }
   };
 
-  const handleContribute = async (amount: number) => {
+  const handleContribute = async () => {
     if (!user || !selectedGoal) return;
     
     try {
@@ -166,7 +165,7 @@ export default function GoalsMobile() {
         .insert({
           user_id: user.id,
           name: `Contribution to ${selectedGoal.goal_name}`,
-          amount: amount,
+          amount: parseFloat(contributionAmount),
           date: new Date().toISOString().split('T')[0],
           type: 'goal_contribution',
         });
@@ -174,7 +173,7 @@ export default function GoalsMobile() {
       if (transactionError) throw transactionError;
 
       // Update goal amount
-      const newAmount = selectedGoal.current_amount + amount;
+      const newAmount = selectedGoal.current_amount + parseFloat(contributionAmount);
       const isCompleted = newAmount >= selectedGoal.target_amount;
       
       const { error: goalError } = await supabase
@@ -189,10 +188,11 @@ export default function GoalsMobile() {
       
       toast({
         title: "Contribution successful",
-        description: `Added ${formatCurrency(amount)} to ${selectedGoal.goal_name}`,
+        description: `Added ${formatCurrency(parseFloat(contributionAmount))} to ${selectedGoal.goal_name}`,
       });
       
       setIsContributeModalOpen(false);
+      setContributionAmount('');
       setSelectedGoal(null);
       loadData();
     } catch (error) {
@@ -299,7 +299,9 @@ export default function GoalsMobile() {
         {/* Goals List */}
         <div className="flex-1 p-4 space-y-3">
           {loading ? (
-            <GoalSkeleton />
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Loading goals...</p>
+            </div>
           ) : displayGoals.length === 0 ? (
             <Card>
               <CardContent className="text-center py-8">
@@ -431,27 +433,103 @@ export default function GoalsMobile() {
         }} />
 
         {/* Add/Edit Goal Modal */}
-        <GoalModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onSubmit={handleSaveGoal}
-          editingGoal={editingGoal ? {
-            goal_name: editingGoal.goal_name,
-            target_amount: editingGoal.target_amount.toString(),
-            target_date: editingGoal.target_date || '',
-          } : null}
-          loading={false}
-        />
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {editingGoal ? 'Edit Goal' : 'Create Savings Goal'}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Goal Name</Label>
+                <Input
+                  id="name"
+                  value={newGoal.goal_name}
+                  onChange={(e) => setNewGoal({ ...newGoal, goal_name: e.target.value })}
+                  placeholder="e.g., Emergency Fund"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="target">Target Amount</Label>
+                <Input
+                  id="target"
+                  type="number"
+                  step="0.01"
+                  value={newGoal.target_amount}
+                  onChange={(e) => setNewGoal({ ...newGoal, target_amount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="date">Target Date (optional)</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={newGoal.target_date}
+                  onChange={(e) => setNewGoal({ ...newGoal, target_date: e.target.value })}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="roundup">Enable Round-ups</Label>
+                <Switch 
+                  id="roundup"
+                  checked={enableRoundUp}
+                  onCheckedChange={setEnableRoundUp}
+                />
+              </div>
+              
+              <Button 
+                onClick={handleSaveGoal} 
+                className="w-full"
+                disabled={!newGoal.goal_name || !newGoal.target_amount}
+              >
+                {editingGoal ? 'Update Goal' : 'Create Goal'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Contribute Modal */}
-        <ContributionModal
-          isOpen={isContributeModalOpen}
-          onClose={() => setIsContributeModalOpen(false)}
-          onSubmit={handleContribute}
-          goalName={selectedGoal?.goal_name || ''}
-          remainingAmount={selectedGoal ? selectedGoal.target_amount - selectedGoal.current_amount : 0}
-          loading={false}
-        />
+        <Dialog open={isContributeModalOpen} onOpenChange={setIsContributeModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Contribute to {selectedGoal?.goal_name}</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="contribution">Amount</Label>
+                <Input
+                  id="contribution"
+                  type="number"
+                  step="0.01"
+                  value={contributionAmount}
+                  onChange={(e) => setContributionAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+                {selectedGoal && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Remaining: {formatCurrency(selectedGoal.target_amount - selectedGoal.current_amount)}
+                  </p>
+                )}
+              </div>
+              
+              <Button 
+                onClick={handleContribute} 
+                className="w-full"
+                disabled={!contributionAmount || parseFloat(contributionAmount) <= 0}
+              >
+                <PiggyBank className="h-4 w-4 mr-2" />
+                Make Contribution
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MobileLayout>
   );
