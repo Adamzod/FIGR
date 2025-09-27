@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -18,19 +18,31 @@ export default function ReconciliationModal() {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
-  const [reconciliation, setReconciliation] = useState<any>(null);
-  const [goals, setGoals] = useState<any[]>([]);
+  const [reconciliation, setReconciliation] = useState<{
+    id: string;
+    surplus_amount: number;
+    user_id: string;
+    processed: boolean;
+    created_at: string;
+    decision?: string;
+    month_start?: string;
+    target_goal_id?: string;
+  } | null>(null);
+  const [goals, setGoals] = useState<{
+    id: string;
+    goal_name: string;
+    current_amount: number;
+    target_amount: number;
+    user_id: string;
+    is_completed: boolean;
+    created_at?: string;
+    target_date?: string;
+  }[]>([]);
   const [decision, setDecision] = useState<'rollover' | 'goal_contribution'>('rollover');
   const [selectedGoalId, setSelectedGoalId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      checkForReconciliation();
-    }
-  }, [user]);
-
-  const checkForReconciliation = async () => {
+  const checkForReconciliation = useCallback(async () => {
     // Check for unprocessed reconciliation decisions
     const { data: reconciliationData } = await supabase
       .from('reconciliation_decisions')
@@ -54,7 +66,13 @@ export default function ReconciliationModal() {
       setGoals(goalsData || []);
       setIsOpen(true);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      checkForReconciliation();
+    }
+  }, [user, checkForReconciliation]);
 
   const handleDecision = async (decisionType: 'rollover' | 'goal_contribution', goalId?: string) => {
     if (decisionType === 'goal_contribution' && !goalId) {
@@ -103,12 +121,12 @@ export default function ReconciliationModal() {
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         onSubmit={handleDecision}
-        surplusAmount={parseFloat(reconciliation.surplus_amount)}
+        surplusAmount={reconciliation.surplus_amount}
         goals={goals.map(goal => ({
           id: goal.id,
           goal_name: goal.goal_name,
-          current_amount: parseFloat(goal.current_amount),
-          target_amount: parseFloat(goal.target_amount),
+          current_amount: goal.current_amount,
+          target_amount: goal.target_amount,
         }))}
         loading={isProcessing}
       />
@@ -134,13 +152,13 @@ export default function ReconciliationModal() {
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-2">Last Month's Surplus</p>
                 <p className="text-3xl font-bold text-success">
-                  {formatCurrency(parseFloat(reconciliation.surplus_amount))}
+                  {formatCurrency(reconciliation.surplus_amount)}
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <RadioGroup value={decision} onValueChange={(value: any) => setDecision(value)}>
+          <RadioGroup value={decision} onValueChange={(value: 'rollover' | 'goal_contribution') => setDecision(value)}>
             <div className="space-y-3">
               <div className="flex items-start space-x-3">
                 <RadioGroupItem value="rollover" id="rollover" />
@@ -180,7 +198,7 @@ export default function ReconciliationModal() {
                 <SelectContent>
                   {goals.map(goal => (
                     <SelectItem key={goal.id} value={goal.id}>
-                      {goal.goal_name} ({formatCurrency(parseFloat(goal.current_amount))} / {formatCurrency(parseFloat(goal.target_amount))})
+                      {goal.goal_name} ({formatCurrency(goal.current_amount)} / {formatCurrency(goal.target_amount)})
                     </SelectItem>
                   ))}
                 </SelectContent>

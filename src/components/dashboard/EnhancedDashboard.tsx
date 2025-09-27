@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,11 +18,20 @@ interface Transaction {
 }
 
 interface DashboardProps {
-  user: any;
+  user: {
+    id: string;
+    email?: string;
+  };
   availableFunds: number;
   totalIncome: number;
   totalSpent: number;
-  categories: any[];
+  categories: {
+    id: string;
+    name: string;
+    color?: string;
+    budget?: number;
+    spent?: number;
+  }[];
   currentMonthRollover: number;
 }
 
@@ -39,13 +48,8 @@ export function EnhancedDashboard({
   const [daysLeftInMonth, setDaysLeftInMonth] = useState(0);
   const [goalContributions, setGoalContributions] = useState(0);
 
-  useEffect(() => {
-    loadRecentTransactions();
-    calculateDailyStats();
-    loadGoalContributions();
-  }, [user, availableFunds]);
 
-  const loadRecentTransactions = async () => {
+  const loadRecentTransactions = useCallback(async () => {
     if (!user) return;
     
     const { data } = await supabase
@@ -56,9 +60,9 @@ export function EnhancedDashboard({
       .limit(5);
     
     setRecentTransactions(data || []);
-  };
+  }, [user]);
 
-  const loadGoalContributions = async () => {
+  const loadGoalContributions = useCallback(async () => {
     if (!user) return;
     
     const { start, end } = getMonthDateRange();
@@ -72,15 +76,21 @@ export function EnhancedDashboard({
     
     const total = data?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
     setGoalContributions(total);
-  };
+  }, [user]);
 
-  const calculateDailyStats = () => {
+  const calculateDailyStats = useCallback(() => {
     const now = new Date();
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const daysLeft = Math.max(1, lastDay.getDate() - now.getDate() + 1);
     setDaysLeftInMonth(daysLeft);
     setDailyAllowance(availableFunds > 0 ? availableFunds / daysLeft : 0);
-  };
+  }, [availableFunds]);
+
+  useEffect(() => {
+    loadRecentTransactions();
+    calculateDailyStats();
+    loadGoalContributions();
+  }, [user, availableFunds, loadRecentTransactions, calculateDailyStats, loadGoalContributions]);
 
   const spentPercentage = totalIncome > 0 ? (totalSpent / totalIncome) * 100 : 0;
   const isOverBudget = totalSpent > totalIncome;

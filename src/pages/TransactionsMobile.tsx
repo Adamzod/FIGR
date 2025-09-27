@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { FAB } from '@/components/layout/FAB';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,13 +52,7 @@ export default function TransactionsMobile() {
     note: '',
   });
 
-  useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user, dateFilter]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
@@ -67,8 +61,7 @@ export default function TransactionsMobile() {
       const { data: categoriesData } = await supabase
         .from('categories')
         .select('*')
-        .eq('user_id', user.id)
-        .order('name');
+        .eq('user_id', user.id);
       
       setCategories(categoriesData || []);
 
@@ -79,27 +72,29 @@ export default function TransactionsMobile() {
         .eq('user_id', user.id)
         .order('date', { ascending: false });
 
-      if (dateFilter === 'month') {
+      if (dateFilter === 'week') {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        query = query.gte('date', oneWeekAgo.toISOString().split('T')[0]);
+      } else if (dateFilter === 'month') {
         const { start, end } = getMonthDateRange();
         query = query.gte('date', start).lte('date', end);
-      } else if (dateFilter === 'week') {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        query = query.gte('date', weekAgo.toISOString().split('T')[0]);
       }
 
       const { data: transactionsData } = await query;
       setTransactions(transactionsData || []);
     } catch (error) {
-      toast({
-        title: "Error loading data",
-        description: "Failed to load transactions",
-        variant: "destructive",
-      });
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, dateFilter]);
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user, dateFilter, loadData]);
 
   const handleAddTransaction = async () => {
     if (!user) return;
@@ -254,7 +249,7 @@ export default function TransactionsMobile() {
                   </SelectContent>
                 </Select>
 
-                <Tabs value={dateFilter} onValueChange={(v) => setDateFilter(v as any)} className="flex-1">
+                <Tabs value={dateFilter} onValueChange={(v: 'week' | 'month' | 'all') => setDateFilter(v)} className="flex-1">
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="week">Week</TabsTrigger>
                     <TabsTrigger value="month">Month</TabsTrigger>
