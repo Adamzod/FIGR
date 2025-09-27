@@ -76,7 +76,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-lg md:hidden">
-      <div className="grid grid-cols-5 h-16">
+      <div className="grid grid-cols-5  h-20">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
