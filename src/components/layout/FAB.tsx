@@ -12,7 +12,7 @@ export function FAB({ onClick, className }: FABProps) {
     <button
       onClick={onClick}
       className={cn(
-        'fixed bottom-20 right-4 z-50',
+        'fixed bottom-24 right-4 z-50',
         'w-14 h-14 rounded-full',
         'bg-primary text-primary-foreground',
         'shadow-lg hover:shadow-xl',
