@@ -52,8 +52,6 @@ export interface Income {
   frequency: string;
   user_id: string;
   created_at: string;
-  is_recurring?: boolean;
-  payment_date?: string;
 }
 
 export interface PendingAction {

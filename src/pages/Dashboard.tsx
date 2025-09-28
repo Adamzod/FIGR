@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { normalizeToMonthly, getMonthDateRange, getIncomeForMonth } from '@/lib/finance-utils';
+import { normalizeToMonthly, getMonthDateRange } from '@/lib/finance-utils';
 import { Plus, Loader2 } from 'lucide-react';
 
 interface Category {
@@ -108,9 +108,9 @@ export default function Dashboard() {
         .select('*')
         .eq('user_id', user.id);
       
-      const currentMonth = new Date().getMonth();
-      const currentYear = new Date().getFullYear();
-      const monthlyIncome = getIncomeForMonth(incomes || [], currentMonth, currentYear);
+      const monthlyIncome = incomes?.reduce((sum, income) => {
+        return sum + normalizeToMonthly(income.amount, income.frequency);
+      }, 0) || 0;
       
       // Load categories
       const { data: categoriesData } = await supabase

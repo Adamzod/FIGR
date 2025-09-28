@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { formatCurrency, formatDate, getMonthDateRange, normalizeToMonthly } from '@/lib/finance-utils';
+import { formatCurrency, formatDate, getMonthDateRange } from '@/lib/finance-utils';
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,7 +47,6 @@ export function EnhancedDashboard({
   const [dailyAllowance, setDailyAllowance] = useState(0);
   const [daysLeftInMonth, setDaysLeftInMonth] = useState(0);
   const [goalContributions, setGoalContributions] = useState(0);
-  const [incomes, setIncomes] = useState<any[]>([]);
 
 
   const loadRecentTransactions = useCallback(async () => {
@@ -87,32 +86,17 @@ export function EnhancedDashboard({
     setDailyAllowance(availableFunds > 0 ? availableFunds / daysLeft : 0);
   }, [availableFunds]);
 
-  const loadIncomes = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('incomes')
-      .select('*')
-      .eq('user_id', user.id);
-    setIncomes(data || []);
-  }, [user]);
-
   useEffect(() => {
     loadRecentTransactions();
     calculateDailyStats();
     loadGoalContributions();
-    loadIncomes();
-  }, [user, availableFunds, loadRecentTransactions, calculateDailyStats, loadGoalContributions, loadIncomes]);
+  }, [user, availableFunds, loadRecentTransactions, calculateDailyStats, loadGoalContributions]);
 
   const spentPercentage = totalIncome > 0 ? (totalSpent / totalIncome) * 100 : 0;
   const isOverBudget = totalSpent > totalIncome;
 
   // Calculate actual available with rollover
   const actualAvailable = availableFunds + currentMonthRollover;
-  
-  // Calculate recurring and one-time income breakdown
-  const recurringIncome = incomes?.filter(i => i.is_recurring !== false)
-    .reduce((sum, income) => sum + normalizeToMonthly(income.amount, income.frequency), 0) || 0;
-  const oneTimeIncome = totalIncome - recurringIncome;
 
   return (
     <div className="space-y-4">
@@ -176,11 +160,6 @@ export function EnhancedDashboard({
             <div>
               <p className="text-xs text-muted-foreground mb-1">Income</p>
               <p className="font-bold text-success">{formatCurrency(totalIncome)}</p>
-              {oneTimeIncome > 0 && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  +{formatCurrency(oneTimeIncome)} one-time
-                </p>
-              )}
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Expenses</p>
