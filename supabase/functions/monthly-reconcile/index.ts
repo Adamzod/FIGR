@@ -38,22 +38,38 @@ Deno.serve(async (req) => {
       // Calculate last month's income
       const { data: incomes } = await supabase
         .from('incomes')
-        .select('amount, frequency')
+        .select('*')
         .eq('user_id', user.id)
 
+      // Calculate last month's total income (including one-time payments)
+      const lastMonth = now.getMonth() - 1
+      const lastYear = lastMonth < 0 ? now.getFullYear() - 1 : now.getFullYear()
+      const adjustedMonth = lastMonth < 0 ? 11 : lastMonth
+      
       let totalMonthlyIncome = 0
+      
+      // Add recurring income
       for (const income of incomes || []) {
-        const amount = parseFloat(income.amount)
-        switch (income.frequency) {
-          case 'weekly':
-            totalMonthlyIncome += amount * 4
-            break
-          case 'bi-weekly':
-            totalMonthlyIncome += amount * 2
-            break
-          case 'monthly':
-            totalMonthlyIncome += amount
-            break
+        if (income.is_recurring !== false) {
+          const amount = parseFloat(income.amount)
+          switch (income.frequency) {
+            case 'weekly':
+              totalMonthlyIncome += amount * 4
+              break
+            case 'bi-weekly':
+              totalMonthlyIncome += amount * 2
+              break
+            case 'monthly':
+              totalMonthlyIncome += amount
+              break
+          }
+        }
+        // Add one-time payments for the specific month
+        else if (income.payment_date) {
+          const paymentDate = new Date(income.payment_date)
+          if (paymentDate.getMonth() === adjustedMonth && paymentDate.getFullYear() === lastYear) {
+            totalMonthlyIncome += parseFloat(income.amount)
+          }
         }
       }
 
