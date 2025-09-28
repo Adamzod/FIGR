@@ -108,16 +108,22 @@ interface TransactionModalProps {
   onClose: () => void;
   onSubmit: (data: TransactionData) => void;
   categories: Array<{ id: string; name: string }>;
+  goals?: Array<{ id: string; goal_name: string }>;
+  subscriptions?: Array<{ id: string; name: string }>;
   editingTransaction?: TransactionData | null;
   loading?: boolean;
+  isIncomeMode?: boolean;
 }
 
 interface TransactionData {
   name: string;
   amount: string;
   category_id: string;
+  goal_id?: string;
+  subscription_id?: string;
   date: string;
   note: string;
+  type?: string;
 }
 
 export function TransactionModal({
@@ -125,15 +131,21 @@ export function TransactionModal({
   onClose,
   onSubmit,
   categories,
+  goals = [],
+  subscriptions = [],
   editingTransaction,
   loading = false,
+  isIncomeMode = false,
 }: TransactionModalProps) {
   const [formData, setFormData] = React.useState<TransactionData>({
     name: '',
     amount: '',
     category_id: 'none',
+    goal_id: 'none',
+    subscription_id: 'none',
     date: new Date().toISOString().split('T')[0],
     note: '',
+    type: isIncomeMode ? 'income' : undefined,
   });
 
   const [selectedQuickAmount, setSelectedQuickAmount] = React.useState<number | null>(null);
@@ -146,11 +158,14 @@ export function TransactionModal({
         name: '',
         amount: '',
         category_id: 'none',
+        goal_id: 'none',
+        subscription_id: 'none',
         date: new Date().toISOString().split('T')[0],
         note: '',
+        type: isIncomeMode ? 'income' : undefined,
       });
     }
-  }, [editingTransaction, isOpen]);
+  }, [editingTransaction, isOpen, isIncomeMode]);
 
   const handleQuickAmount = (amount: number) => {
     setSelectedQuickAmount(amount);
@@ -162,7 +177,24 @@ export function TransactionModal({
     onSubmit(formData);
   };
 
-  const quickAmounts = [10, 25, 50, 100];
+  const quickAmounts = isIncomeMode ? [50, 100, 250, 500] : [10, 25, 50, 100];
+
+  // Dynamic text based on income mode
+  const placeholderText = isIncomeMode 
+    ? "e.g., Freelance Payment, Bonus" 
+    : "e.g., Coffee, Groceries";
+  
+  const titleText = isIncomeMode 
+    ? (editingTransaction ? 'Edit Income' : 'Add One-time Income')
+    : (editingTransaction ? 'Edit Transaction' : 'Add Transaction');
+  
+  const descriptionText = isIncomeMode 
+    ? "Record a one-time income payment"
+    : "Record a new expense or income";
+
+  const submitButtonText = isIncomeMode
+    ? (editingTransaction ? 'Update Income' : 'Add Income')
+    : (editingTransaction ? 'Update Transaction' : 'Add Transaction');
 
   const footer = (
     <MobileActionButton
@@ -170,9 +202,9 @@ export function TransactionModal({
       loading={loading}
       className="w-full"
       disabled={!formData.name || !formData.amount}
-      icon={<Plus className="w-4 h-4" />}
+      icon={isIncomeMode ? <TrendingUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
     >
-      {editingTransaction ? 'Update Transaction' : 'Add Transaction'}
+      {submitButtonText}
     </MobileActionButton>
   );
 
@@ -180,17 +212,21 @@ export function TransactionModal({
     <MobileModal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingTransaction ? 'Edit Transaction' : 'Add Transaction'}
-      description="Record a new expense or income"
+      title={titleText}
+      description={descriptionText}
       footer={footer}
     >
       <div className="space-y-6">
         <MobileFormSection>
-          <MobileFormField label="Transaction Name" required icon={<Receipt className="w-4 h-4" />}>
+          <MobileFormField 
+            label={isIncomeMode ? "Income Source" : "Transaction Name"} 
+            required 
+            icon={<Receipt className="w-4 h-4" />}
+          >
             <MobileInput
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="e.g., Coffee, Groceries"
+              placeholder={placeholderText}
             />
           </MobileFormField>
 
@@ -212,24 +248,88 @@ export function TransactionModal({
             />
           </MobileFormField>
 
-          <MobileFormField label="Category" icon={<Target className="w-4 h-4" />}>
-            <Select
-              value={formData.category_id}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
-            >
-              <SelectTrigger className="h-12 text-base">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No category</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </MobileFormField>
+          {!isIncomeMode && (
+            <MobileFormField label="Transaction Type" icon={<Receipt className="w-4 h-4" />}>
+              <Select
+                value={formData.type || 'expense'}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue placeholder="Select transaction type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="subscription">Subscription</SelectItem>
+                  <SelectItem value="goal_contribution">Goal Contribution</SelectItem>
+                </SelectContent>
+              </Select>
+            </MobileFormField>
+          )}
+
+          {/* Dynamic selector based on transaction type */}
+          {!isIncomeMode && formData.type === 'expense' && (
+            <MobileFormField label="Category" icon={<Target className="w-4 h-4" />}>
+              <Select
+                value={formData.category_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
+              >
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No category</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </MobileFormField>
+          )}
+
+          {!isIncomeMode && formData.type === 'goal_contribution' && (
+            <MobileFormField label="Goal" icon={<Target className="w-4 h-4" />}>
+              <Select
+                value={formData.goal_id || 'none'}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, goal_id: value }))}
+              >
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue placeholder="Select a goal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No goal</SelectItem>
+                  {goals.map((goal) => (
+                    <SelectItem key={goal.id} value={goal.id}>
+                      {goal.goal_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </MobileFormField>
+          )}
+
+          {!isIncomeMode && formData.type === 'subscription' && (
+            <MobileFormField label="Subscription" icon={<Target className="w-4 h-4" />}>
+              <Select
+                value={formData.subscription_id || 'none'}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, subscription_id: value }))}
+              >
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue placeholder="Select a subscription" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No subscription</SelectItem>
+                  {subscriptions.map((subscription) => (
+                    <SelectItem key={subscription.id} value={subscription.id}>
+                      {subscription.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </MobileFormField>
+          )}
 
           <MobileFormField label="Date" icon={<Calendar className="w-4 h-4" />}>
             <MobileInput
