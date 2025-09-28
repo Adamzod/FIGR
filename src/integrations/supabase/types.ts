@@ -129,6 +129,8 @@ export type Database = {
           created_at: string | null
           frequency: string
           id: string
+          is_recurring: boolean | null
+          payment_date: string | null
           source_name: string
           user_id: string
         }
@@ -137,6 +139,8 @@ export type Database = {
           created_at?: string | null
           frequency: string
           id?: string
+          is_recurring?: boolean | null
+          payment_date?: string | null
           source_name: string
           user_id: string
         }
@@ -145,6 +149,8 @@ export type Database = {
           created_at?: string | null
           frequency?: string
           id?: string
+          is_recurring?: boolean | null
+          payment_date?: string | null
           source_name?: string
           user_id?: string
         }
