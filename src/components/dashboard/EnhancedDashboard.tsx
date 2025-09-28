@@ -4,7 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatCurrency, formatDate, getMonthDateRange } from '@/lib/finance-utils';
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Receipt } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, CalendarDays, Target, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -35,6 +35,8 @@ interface DashboardProps {
   currentMonthRollover: number;
 }
 
+type DailyBudgetMode = 'total' | 'category';
+
 export function EnhancedDashboard({ 
   user, 
   availableFunds, 
@@ -47,7 +49,20 @@ export function EnhancedDashboard({
   const [dailyAllowance, setDailyAllowance] = useState(0);
   const [daysLeftInMonth, setDaysLeftInMonth] = useState(0);
   const [goalContributions, setGoalContributions] = useState(0);
-
+  
+  // Enhanced daily budget state
+  const [dailyBudgetMode, setDailyBudgetMode] = useState<DailyBudgetMode>(() => {
+    const saved = localStorage.getItem('dailyBudgetMode');
+    return (saved as DailyBudgetMode) || 'total';
+  });
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(() => {
+    return localStorage.getItem('selectedCategoryId') || '';
+  });
+  const [budgetPeriod, setBudgetPeriod] = useState<'daily' | 'weekly'>(() => {
+    const saved = localStorage.getItem('budgetPeriod');
+    return (saved as 'daily' | 'weekly') || 'daily';
+  });
+  const [categorySpentThisMonth, setCategorySpentThisMonth] = useState(0);
 
   const loadRecentTransactions = useCallback(async () => {
     if (!user) return;
@@ -78,13 +93,41 @@ export function EnhancedDashboard({
     setGoalContributions(total);
   }, [user]);
 
+  const loadCategorySpentThisMonth = useCallback(async (categoryId: string) => {
+    if (!user || !categoryId) return;
+    
+    const { start, end } = getMonthDateRange();
+    const { data } = await supabase
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', user.id)
+      .eq('category_id', categoryId)
+      .gte('date', start)
+      .lte('date', end);
+    
+    const total = data?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+    setCategorySpentThisMonth(total);
+  }, [user]);
+
   const calculateDailyStats = useCallback(() => {
     const now = new Date();
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const daysLeft = Math.max(1, lastDay.getDate() - now.getDate() + 1);
     setDaysLeftInMonth(daysLeft);
-    setDailyAllowance(availableFunds > 0 ? availableFunds / daysLeft : 0);
-  }, [availableFunds]);
+
+    // Calculate periods left based on budget period
+    const periodsLeft = budgetPeriod === 'weekly' ? Math.ceil(daysLeft / 7) : daysLeft;
+
+    if (dailyBudgetMode === 'category' && selectedCategoryId) {
+      const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
+      if (selectedCategory) {
+        const remainingBudget = Math.max(0, (selectedCategory.budget || 0) - categorySpentThisMonth);
+        setDailyAllowance(remainingBudget > 0 ? remainingBudget / periodsLeft : 0);
+      }
+    } else {
+      setDailyAllowance(availableFunds > 0 ? availableFunds / periodsLeft : 0);
+    }
+  }, [availableFunds, dailyBudgetMode, selectedCategoryId, categories, categorySpentThisMonth, budgetPeriod]);
 
   useEffect(() => {
     loadRecentTransactions();
@@ -92,11 +135,41 @@ export function EnhancedDashboard({
     loadGoalContributions();
   }, [user, availableFunds, loadRecentTransactions, calculateDailyStats, loadGoalContributions]);
 
+  useEffect(() => {
+    if (dailyBudgetMode === 'category' && selectedCategoryId) {
+      loadCategorySpentThisMonth(selectedCategoryId);
+    }
+  }, [selectedCategoryId, dailyBudgetMode, loadCategorySpentThisMonth]);
+
+  useEffect(() => {
+    calculateDailyStats();
+  }, [categorySpentThisMonth, calculateDailyStats]);
+
+  useEffect(() => {
+    calculateDailyStats();
+  }, [budgetPeriod, calculateDailyStats]);
+
+  // Save settings to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('dailyBudgetMode', dailyBudgetMode);
+  }, [dailyBudgetMode]);
+
+  useEffect(() => {
+    localStorage.setItem('selectedCategoryId', selectedCategoryId);
+  }, [selectedCategoryId]);
+
   const spentPercentage = totalIncome > 0 ? (totalSpent / totalIncome) * 100 : 0;
   const isOverBudget = totalSpent > totalIncome;
 
   // Calculate actual available with rollover
   const actualAvailable = availableFunds + currentMonthRollover;
+
+  // Get selected category details
+  const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
+  const categoryBudgetPercentage = selectedCategory && selectedCategory.budget > 0 
+    ? (categorySpentThisMonth / selectedCategory.budget) * 100 
+    : 0;
+  const isCategoryOverBudget = selectedCategory && categorySpentThisMonth > (selectedCategory.budget || 0);
 
   return (
     <div className="space-y-4">
@@ -110,11 +183,10 @@ export function EnhancedDashboard({
                 'text-4xl font-bold tabular-nums',
                 isOverBudget ? 'text-danger' : 'text-foreground'
               )}>
-                {formatCurrency(availableFunds + totalSpent)}
+                {formatCurrency(availableFunds)}
                 {currentMonthRollover > 0 && (
                 <p className="text-sm font-semibold text-green-600 mt-1">
                   +{formatCurrency(currentMonthRollover)} rollover
-                  No rollover
                 </p>
               )}
               </p>
@@ -141,18 +213,17 @@ export function EnhancedDashboard({
               />
               <div className="flex justify-between text-sm">
                 <p className="text-sm font-medium text-muted-foreground">
-                  Remaining {formatCurrency(actualAvailable)}
+                  Total {formatCurrency(actualAvailable + totalSpent)}
                 </p>
                 <span className="font-medium text-muted-foreground">
                   {Math.round(spentPercentage)}%
                 </span>
               </div>
-
-              
             </div>
           </div>
         </CardContent>
       </Card>
+
       {/* Monthly Summary */}
       <Card className="bg-muted/50">
         <CardContent className="p-4">
@@ -176,14 +247,14 @@ export function EnhancedDashboard({
       {/* Quick Stats */}
       <div className="grid grid-cols-2 gap-3">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
+          <CardContent className="flex h-full content-center p-4">
+            <div className="flex content-center  h-full items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Calendar className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Days Left</p>
-                <p className="text-xl font-bold">{daysLeftInMonth}</p>
+                <p className="text-xs text-muted-foreground">{budgetPeriod === 'daily' ? 'Days Left' : 'Weeks Left'}</p>
+                <p className="text-xl font-bold">{budgetPeriod === 'daily' ? daysLeftInMonth : Math.ceil(daysLeftInMonth / 7)}</p>
               </div>
             </div>
           </CardContent>
@@ -192,18 +263,39 @@ export function EnhancedDashboard({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-success/10 rounded-lg">
-                <DollarSign className="h-4 w-4 text-success" />
+              <div className={cn(
+                "p-2 rounded-lg",
+                dailyBudgetMode === 'category' ? "bg-blue/10" : "bg-success/10"
+              )}>
+                {budgetPeriod === 'weekly' ? (
+                  <DollarSign className={cn(
+                    "h-4 w-4",
+                    dailyBudgetMode === 'category' ? "text-blue-600" : "text-success"
+                  )} />
+                ) : (
+                  <DollarSign className={cn(
+                    "h-4 w-4",
+                    dailyBudgetMode === 'category' ? "text-blue-600" : "text-success"
+                  )} />
+                )}
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Daily Budget</p>
+                <p className="text-xs text-muted-foreground">
+                  {dailyBudgetMode === 'category' ? `Category ${budgetPeriod === 'daily' ? 'Daily' : 'Weekly'}` : `${budgetPeriod === 'daily' ? 'Daily' : 'Weekly'} Budget`}
+                </p>
                 <p className="text-xl font-bold">{formatCurrency(dailyAllowance)}</p>
+                {dailyBudgetMode === 'category' && selectedCategory && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    {selectedCategory.name}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
+     
       {/* Spending by Category */}
       <Card>
         <CardHeader className="pb-3">
@@ -212,9 +304,9 @@ export function EnhancedDashboard({
         <CardContent className="space-y-3">
           {categories.slice(0, 5).map(category => {
             const percentage = category.budget > 0 
-              ? (category.spent / category.budget) * 100 
+              ? ((category.spent || 0) / category.budget) * 100 
               : 0;
-            const isOverBudget = category.spent > category.budget;
+            const isOverBudget = (category.spent || 0) > (category.budget || 0);
             
             return (
               <div key={category.id} className="space-y-1">
@@ -224,7 +316,7 @@ export function EnhancedDashboard({
                     "text-xs",
                     isOverBudget ? "text-danger" : "text-muted-foreground"
                   )}>
-                    {formatCurrency(category.spent)} / {formatCurrency(category.budget)}
+                    {formatCurrency(category.spent || 0)} / {formatCurrency(category.budget || 0)}
                   </span>
                 </div>
                 <Progress 
@@ -274,8 +366,6 @@ export function EnhancedDashboard({
           </ScrollArea>
         </CardContent>
       </Card>
-
-
     </div>
   );
 }

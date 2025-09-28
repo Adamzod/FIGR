@@ -20,9 +20,11 @@ import {
   TrendingUp,
   Briefcase,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Plus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TransactionModal } from '@/components/ui/mobile-modals';
 
 interface Income {
   id: string;
@@ -32,12 +34,19 @@ interface Income {
   created_at: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 export default function IncomesMobile() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [incomes, setIncomes] = useState<Income[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isOneTimeIncomeModalOpen, setIsOneTimeIncomeModalOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [newIncome, setNewIncome] = useState({
     source_name: '',
@@ -48,6 +57,7 @@ export default function IncomesMobile() {
   useEffect(() => {
     if (user) {
       loadIncomes();
+      loadCategories();
     }
   }, [user]);
 
@@ -71,6 +81,21 @@ export default function IncomesMobile() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    if (!user) return;
+    
+    try {
+      const { data: categoriesData } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      setCategories(categoriesData || []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
     }
   };
 
@@ -170,6 +195,39 @@ export default function IncomesMobile() {
     setIsAddModalOpen(true);
   };
 
+  const handleAddOneTimeIncome = async (transactionData: any) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          name: transactionData.name,
+          amount: parseFloat(transactionData.amount),
+          category_id: transactionData.category_id === 'none' ? null : transactionData.category_id,
+          date: transactionData.date,
+          note: transactionData.note || null,
+          type: 'income',
+        });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "One-time income added",
+        description: "Your income payment has been recorded",
+      });
+      
+      setIsOneTimeIncomeModalOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add income payment",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Calculate totals
   const totalMonthlyIncome = incomes.reduce((sum, income) => {
     return sum + normalizeToMonthly(income.amount, income.frequency);
@@ -237,6 +295,32 @@ export default function IncomesMobile() {
                 </AlertDescription>
               </Alert>
             )}
+
+            {/* One-time Income Card */}
+            <Card className="mt-3 border-green-200 bg-green-50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-green-800">One-time Income</h3>
+                      <p className="text-sm text-green-600">Record bonus, freelance, or other income</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsOneTimeIncomeModalOpen(true)}
+                    className="border-green-300 text-green-700 hover:bg-green-100"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Income
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -400,6 +484,18 @@ export default function IncomesMobile() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* One-time Income Modal */}
+        <TransactionModal
+          isOpen={isOneTimeIncomeModalOpen}
+          onClose={() => setIsOneTimeIncomeModalOpen(false)}
+          onSubmit={handleAddOneTimeIncome}
+          categories={categories}
+          goals={[]}
+          subscriptions={[]}
+          loading={loading}
+          isIncomeMode={true}
+        />
       </div>
     </MobileLayout>
   );

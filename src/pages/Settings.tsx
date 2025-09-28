@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,10 +6,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { formatCurrency, getMonthDateRange } from '@/lib/finance-utils';
 import { 
   User, 
   Download, 
@@ -19,7 +21,8 @@ import {
   Shield, 
   ChevronRight,
   FileText,
-  HelpCircle
+  HelpCircle,
+  DollarSign
 } from 'lucide-react';
 
 export default function Settings() {
@@ -29,11 +32,78 @@ export default function Settings() {
   const [isExporting, setIsExporting] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
+  
+  // Daily budget settings
+  const [dailyBudgetMode, setDailyBudgetMode] = useState<'total' | 'category'>(() => {
+    const saved = localStorage.getItem('dailyBudgetMode');
+    return (saved as 'total' | 'category') || 'total';
+  });
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(() => {
+    return localStorage.getItem('selectedCategoryId') || '';
+  });
+  const [budgetPeriod, setBudgetPeriod] = useState<'daily' | 'weekly'>(() => {
+    const saved = localStorage.getItem('budgetPeriod');
+    return (saved as 'daily' | 'weekly') || 'daily';
+  });
+  const [categories, setCategories] = useState<Array<{id: string; name: string; budget?: number}>>([]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate('/auth');
   };
+
+  // Load categories for daily budget settings
+  const loadCategories = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      // Load income
+      const { data: incomes } = await supabase
+        .from('incomes')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      const monthlyIncome = incomes?.reduce((sum, income) => {
+        return sum + (income.amount * (income.frequency === 'weekly' ? 4.33 : income.frequency === 'bi-weekly' ? 2.17 : 1));
+      }, 0) || 0;
+
+      // Load categories
+      const { data: categoriesData } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name');
+      
+      const categoriesWithBudget = categoriesData?.map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        budget: cat.allocated_percentage * monthlyIncome
+      })).filter(cat => cat.budget && cat.budget > 0) || [];
+      
+      setCategories(categoriesWithBudget);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  }, [user]);
+
+  // Save daily budget settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('dailyBudgetMode', dailyBudgetMode);
+  }, [dailyBudgetMode]);
+
+  useEffect(() => {
+    localStorage.setItem('selectedCategoryId', selectedCategoryId);
+  }, [selectedCategoryId]);
+
+  useEffect(() => {
+    localStorage.setItem('budgetPeriod', budgetPeriod);
+  }, [budgetPeriod]);
+
+  useEffect(() => {
+    if (user) {
+      loadCategories();
+    }
+  }, [user, loadCategories]);
 
   const exportData = async () => {
     setIsExporting(true);
@@ -111,6 +181,82 @@ export default function Settings() {
                   <p className="font-semibold">{user?.email}</p>
                   <p className="text-sm text-muted-foreground">Member since {new Date().getFullYear()}</p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Daily Budget Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Budget Settings
+              </CardTitle>
+              <CardDescription>Configure how your budget is calculated</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="budget-mode" className="text-sm font-medium">Budget Mode</Label>
+                <Select value={dailyBudgetMode} onValueChange={(value: 'total' | 'category') => setDailyBudgetMode(value)}>
+                  <SelectTrigger id="budget-mode" className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="total">Total Available Funds</SelectItem>
+                    <SelectItem value="category">Specific Category</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Choose how your budget is calculated
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="budget-period" className="text-sm font-medium">Budget Period</Label>
+                <Select value={budgetPeriod} onValueChange={(value: 'daily' | 'weekly') => setBudgetPeriod(value)}>
+                  <SelectTrigger id="budget-period" className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Choose your budgeting period
+                </p>
+              </div>
+
+              {dailyBudgetMode === 'category' && (
+                <div>
+                  <Label htmlFor="category-select" className="text-sm font-medium">Select Category</Label>
+                  <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                    <SelectTrigger id="category-select" className="mt-1">
+                      <SelectValue placeholder="Choose a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(category => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name} ({formatCurrency(category.budget || 0)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {budgetPeriod === 'daily' ? 'Daily' : 'Weekly'} budget will be calculated from this category's remaining budget
+                  </p>
+                </div>
+              )}
+
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  {dailyBudgetMode === 'total' 
+                    ? `Your ${budgetPeriod} budget will be calculated by dividing your total available funds by the number of ${budgetPeriod === 'daily' ? 'days' : 'weeks'} left in the month.`
+                    : selectedCategoryId 
+                      ? `Your ${budgetPeriod} budget will be calculated by dividing the selected category's remaining budget by the number of ${budgetPeriod === 'daily' ? 'days' : 'weeks'} left in the month.`
+                      : `Please select a category to use for ${budgetPeriod} budget calculation.`
+                  }
+                </p>
               </div>
             </CardContent>
           </Card>

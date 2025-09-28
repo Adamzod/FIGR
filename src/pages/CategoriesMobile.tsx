@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { FAB } from '@/components/layout/FAB';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,13 +52,7 @@ export default function CategoriesMobile() {
   });
   const [totalAllocated, setTotalAllocated] = useState(0);
 
-  useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
@@ -118,7 +112,13 @@ export default function CategoriesMobile() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user, loadData]);
 
   const handleSaveCategory = async () => {
     if (!user) return;
@@ -269,7 +269,7 @@ export default function CategoriesMobile() {
                     "text-sm font-bold",
                     isOverBudget ? "text-danger" : "text-foreground"
                   )}>
-                    {formatCurrency(totalIncome * totalAllocated∫)}
+                    {formatCurrency(totalIncome * totalAllocated)}
                   </span>
                 </div>
                 <Progress 

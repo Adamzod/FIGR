@@ -38,6 +38,8 @@ export default function TransactionsMobile() {
   const { toast } = useToast();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [goals, setGoals] = useState<Array<{ id: string; goal_name: string }>>([]);
+  const [subscriptions, setSubscriptions] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -48,8 +50,11 @@ export default function TransactionsMobile() {
     name: '',
     amount: '',
     category_id: 'none',
+    goal_id: 'none',
+    subscription_id: 'none',
     date: new Date().toISOString().split('T')[0],
     note: '',
+    type: 'expense',
   });
 
   const loadData = useCallback(async () => {
@@ -64,6 +69,23 @@ export default function TransactionsMobile() {
         .eq('user_id', user.id);
       
       setCategories(categoriesData || []);
+
+      // Load goals
+      const { data: goalsData } = await supabase
+        .from('goals')
+        .select('id, goal_name')
+        .eq('user_id', user.id)
+        .eq('is_completed', false);
+      
+      setGoals(goalsData || []);
+
+      // Load subscriptions
+      const { data: subscriptionsData } = await supabase
+        .from('subscriptions')
+        .select('id, name')
+        .eq('user_id', user.id);
+      
+      setSubscriptions(subscriptionsData || []);
 
       // Load transactions based on date filter
       let query = supabase
@@ -107,6 +129,10 @@ export default function TransactionsMobile() {
         category_id: newTransaction.category_id === 'none' ? null : newTransaction.category_id,
         date: newTransaction.date,
         note: newTransaction.note || null,
+        type: newTransaction.type === 'expense' ? null : newTransaction.type,
+        // TODO: Add goal_id and subscription_id once database migration is applied
+        // goal_id: newTransaction.goal_id === 'none' ? null : newTransaction.goal_id,
+        // subscription_id: newTransaction.subscription_id === 'none' ? null : newTransaction.subscription_id,
       };
 
       if (editingTransaction) {
@@ -140,8 +166,11 @@ export default function TransactionsMobile() {
         name: '',
         amount: '',
         category_id: 'none',
+        goal_id: 'none',
+        subscription_id: 'none',
         date: new Date().toISOString().split('T')[0],
         note: '',
+        type: 'expense',
       });
       loadData();
     } catch (error) {
@@ -183,8 +212,11 @@ export default function TransactionsMobile() {
       name: transaction.name,
       amount: transaction.amount.toString(),
       category_id: transaction.category_id || 'none',
+      goal_id: (transaction as any).goal_id || 'none',
+      subscription_id: (transaction as any).subscription_id || 'none',
       date: transaction.date,
       note: transaction.note || '',
+      type: transaction.type || 'expense',
     });
     setIsAddModalOpen(true);
   };
@@ -369,8 +401,11 @@ export default function TransactionsMobile() {
             name: '',
             amount: '',
             category_id: 'none',
+            goal_id: 'none',
+            subscription_id: 'none',
             date: new Date().toISOString().split('T')[0],
             note: '',
+            type: 'expense',
           });
           setIsAddModalOpen(true);
         }} />
@@ -408,24 +443,90 @@ export default function TransactionsMobile() {
               </div>
               
               <div>
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="type">Transaction Type</Label>
                 <Select 
-                  value={newTransaction.category_id} 
-                  onValueChange={(value) => setNewTransaction({ ...newTransaction, category_id: value })}
+                  value={newTransaction.type} 
+                  onValueChange={(value) => setNewTransaction({ ...newTransaction, type: value })}
                 >
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Select a category" />
+                  <SelectTrigger id="type">
+                    <SelectValue placeholder="Select transaction type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No category</SelectItem>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="income">Income</SelectItem>
+                    <SelectItem value="subscription">Subscription</SelectItem>
+                    <SelectItem value="goal_contribution">Goal Contribution</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Dynamic selector based on transaction type */}
+              {newTransaction.type === 'expense' && (
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <Select 
+                    value={newTransaction.category_id} 
+                    onValueChange={(value) => setNewTransaction({ ...newTransaction, category_id: value })}
+                  >
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No category</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {newTransaction.type === 'goal_contribution' && (
+                <div>
+                  <Label htmlFor="goal">Goal</Label>
+                  <Select 
+                    value={newTransaction.goal_id} 
+                    onValueChange={(value) => setNewTransaction({ ...newTransaction, goal_id: value })}
+                  >
+                    <SelectTrigger id="goal">
+                      <SelectValue placeholder="Select a goal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No goal</SelectItem>
+                      {goals.map((goal) => (
+                        <SelectItem key={goal.id} value={goal.id}>
+                          {goal.goal_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {newTransaction.type === 'subscription' && (
+                <div>
+                  <Label htmlFor="subscription">Subscription</Label>
+                  <Select 
+                    value={newTransaction.subscription_id} 
+                    onValueChange={(value) => setNewTransaction({ ...newTransaction, subscription_id: value })}
+                  >
+                    <SelectTrigger id="subscription">
+                      <SelectValue placeholder="Select a subscription" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No subscription</SelectItem>
+                      {subscriptions.map((subscription) => (
+                        <SelectItem key={subscription.id} value={subscription.id}>
+                          {subscription.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
               
               <div>
                 <Label htmlFor="date">Date</Label>
