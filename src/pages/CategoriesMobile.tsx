@@ -269,7 +269,7 @@ export default function CategoriesMobile() {
                     "text-sm font-bold",
                     isOverBudget ? "text-danger" : "text-foreground"
                   )}>
-                    {Math.round(totalAllocated * 100)}%
+                    {formatCurrency(totalIncome * totalAllocated∫)}
                   </span>
                 </div>
                 <Progress 
@@ -280,9 +280,18 @@ export default function CategoriesMobile() {
                   )}
                 />
                 {!isOverBudget && remainingPercentage > 0 && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {Math.round(remainingPercentage * 100)}% available
-                  </p>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {formatCurrency(totalIncome -  (totalIncome * totalAllocated))} ({Math.round(remainingPercentage * 100)}%) available
+                    </p>
+                    <span className={cn(
+                      "text-sm font-bold",
+                      isOverBudget ? "text-danger" : "text-foreground"
+                    )}>
+                      {Math.round(totalAllocated * 100)}%
+                    </span>
+                  </div>
+                  
                 )}
                 {isOverBudget && (
                   <Alert className="mt-2">
