@@ -1,4 +1,4 @@
-## Coin Garden Buddy – Web App
+## FIGR – Web App
 
 Mobile‑first personal finance manager built with React, TypeScript, Vite, Tailwind, shadcn/ui, and Supabase.
 
